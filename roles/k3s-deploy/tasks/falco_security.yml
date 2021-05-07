@@ -1,0 +1,183 @@
+---
+
+- block:
+
+    - name: Install Falco repo /rpm-key
+      rpm_key:
+        state: present
+        key: https://falco.org/repo/falcosecurity-3672BA8F.asc
+
+    - name: Install Falco repo /rpm-repo
+      get_url:
+        url: https://falco.org/repo/falcosecurity-rpm.repo
+        dest: /etc/yum.repos.d/falcosecurity.repo
+
+  when: ansible_os_family == 'RedHat'
+
+- block:
+
+    - name: Install Falco repo /apt-key
+      apt_key:
+        url: https://falco.org/repo/falcosecurity-3672BA8F.asc
+        state: present
+
+    - name: Install Falco repo /apt-repo
+      blockinfile:
+        path: /etc/apt/sources.list.d/falcosecurity.list
+        mode: 0644
+        block: |
+          deb https://download.falco.org/packages/deb stable main
+        create: yes
+
+    - name: Apt update
+      apt:
+        update_cache: yes
+
+  when: ansible_os_family == 'Debian'
+
+- name: Install falco on control plane
+  package:
+    state: present
+    name: falco
+
+- name: Check if driver is loaded
+  shell: |
+    set -o pipefail
+    lsmod | grep falco
+  changed_when: no
+  failed_when: no
+  register: falco_module
+
+- name: Security - configure falco to use sidekick
+  template:
+    src: falco/falco.yaml.j2
+    dest: /etc/falco/falco.yaml
+    mode: 0400
+    owner: root
+    group: root
+
+- name: Load Falco module
+  command: |
+    falco-driver-loader
+  when: falco_module.stdout_lines | length == 0
+
+- name: Falco Sidekick
+  block:
+
+    - name: Security - Deploy falco sidekick /ingress-manifest
+      template:
+        src: "falco/{{ item }}.j2"
+        dest: "/var/lib/rancher/k3s/server/custom-manifests/{{ item }}"
+        owner: 'root'
+        group: 'root'
+        mode: '0600'
+      with_items:
+        - falcosidekick-manifest.yaml
+        - falcosidekick-ingress-manifest.yaml
+      when:
+        - "'kube_master' in group_names"
+
+    - name: Security - Deploy falco sidekick /ingress
+      command: "{{ item }}"
+      register: kubectl
+      changed_when: "'created' in kubectl.stdout or 'configured' in kubectl.stdout"
+      failed_when: "'AlreadyExists' not in kubectl.stderr and kubectl.rc != 0"
+      with_items:
+        - "{{ kubectl_cmd }} create ns falco"
+        - "{{ kubectl_cmd }} apply -f /var/lib/rancher/k3s/server/custom-manifests/falcosidekick-manifest.yaml"
+        - "{{ kubectl_cmd }} apply -f /var/lib/rancher/k3s/server/custom-manifests/falcosidekick-ingress-manifest.yaml"
+      run_once: yes
+
+    - name: Security - kubeless function for sidekick
+      block:
+
+        - name: Deploy Kubeless pod-delete function manifest
+          template:
+            src: 'kubeless/falco_function.yaml.j2'
+            dest: '/var/lib/rancher/k3s/server/custom-manifests/falco-function-manifest.yaml'
+            owner: 'root'
+            group: 'root'
+            mode: '0600'
+
+        - name: Deploy Kubeless pod-delete function
+          command: |
+            {{ kubectl_cmd }} apply -n kubeless \
+             -f /var/lib/rancher/k3s/server/custom-manifests/falco-function-manifest.yaml
+          register: kubectl
+          changed_when: "'created' in kubectl.stdout or 'configured' in kubectl.stdout"
+          failed_when: "'AlreadyExists' not in kubectl.stderr and kubectl.rc != 0"
+          run_once: yes
+
+      when:
+        - kubeless_enabled
+
+  when: "'kube_master' in group_names"
+
+- name: Security - Fetch admin api token
+  shell: |
+    set -o pipefail
+    {{ kubectl_cmd }} -n kube-system describe secret admin-user-token| grep '^token:' | awk '{print $2}'
+  changed_when: no
+  register: api_token
+  when:
+    - "'kube_master' in group_names"
+
+- name: Store api token
+  set_fact:
+    falco_token: "{{ hostvars[groups['kube_master'][0]]['api_token'].stdout_lines[0] }}"
+
+- name: Save api token to file
+  lineinfile:
+    create: yes
+    dest: /etc/falco/token
+    group: 'root'
+    line: "{{ falco_token }}"
+    mode: '0000'
+    owner: 'root'
+    state: present
+
+- name: Fix falco folder permission
+  file:
+    path: /etc/falco
+    mode: "go="
+    recurse: yes
+
+- name: Security - Deploy falco service
+  template:
+    src: falco/falco.service.j2
+    dest: /usr/lib/systemd/system/falco.service
+    owner: 'root'
+    group: 'root'
+    mode: '0600'
+  register: falco_service
+
+- name: Deploy custom rules
+  template:
+    src: "falco/{{ item }}.j2"
+    dest: "/etc/falco/rules.d/{{ item }}"
+    owner: 'root'
+    group: 'root'
+    mode: '0600'
+  with_items:
+    - protected_files.yaml
+    - reverse_shell.yaml
+  register: falco_rules
+
+- name: Stop Falco Service
+  systemd:
+    name: falco
+    daemon_reload: yes
+    enabled: yes
+    state: stopped
+  when: >
+    falco_service.changed or
+    falco_rules.changed
+
+- name: Enable Falco Service
+  systemd:
+    name: falco
+    daemon_reload: yes
+    enabled: yes
+    state: started
+
+...

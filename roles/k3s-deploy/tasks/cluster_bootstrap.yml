@@ -1,0 +1,112 @@
+---
+# file" cluster_bootstrap.yml
+#
+
+
+# CIS - 1.2.33, 1.2.34
+- name: Deploy encryption provider config
+  template:
+    src: roles/k3s-deploy/templates/k3s-encryption.yaml.j2
+    dest: /etc/k3s-encryption.yaml
+    mode: 0000
+    owner: root
+    group: root
+
+- name: Check if cluster is already bootstrapped
+  command: |
+    {{ kubectl_cmd }} get nodes
+  register: bootstrap_runned
+  failed_when: no
+  changed_when: no
+
+- name: Prepare HA Cluster if master nodes are > 1
+  block:
+
+    - name: Prepare cluster - master 0 service
+      template:
+        src: k3s-bootstrap-first.service.j2
+        dest: /etc/systemd/system/k3s-bootstrap.service
+        mode: 0400
+        owner: root
+        group: root
+      when: ansible_hostname == groups['kube_master'][0]
+
+    - name: Prepare cluster - other masters service
+      template:
+        src: k3s-bootstrap-followers.service.j2
+        dest: /etc/systemd/system/k3s-bootstrap.service
+        mode: 0400
+        owner: root
+        group: root
+      when: ansible_hostname != groups['kube_master'][0]
+
+    - name: Start K3s service bootstrap /1
+      systemd:
+        name: k3s-bootstrap
+        daemon_reload: yes
+        enabled: no
+        state: started
+      delay: 3
+      register: result
+      retries: 3
+      until: result is not failed
+      when: ansible_hostname == groups['kube_master'][0]
+
+    - name: Wait for service to start
+      pause:
+        seconds: 5
+      run_once: yes
+
+    - name: Start K3s service bootstrap /2
+      systemd:
+        name: k3s-bootstrap
+        daemon_reload: yes
+        enabled: no
+        state: started
+      delay: 3
+      register: result
+      retries: 3
+      until: result is not failed
+      when: ansible_hostname != groups['kube_master'][0]
+
+    - name: Wait for cluster to form
+      shell: |
+        set -o pipefail
+        {{ kubectl_cmd }} get nodes | grep "master" | awk '{print $2}' | grep ^Ready
+      register: masters
+      until:
+        - masters.rc == 0
+        - (masters.stdout_lines | length ) == (groups['kube_master'] | length)
+      retries: 30
+      delay: 5
+      run_once: yes
+      changed_when: no
+
+    - name: Cluster formed
+      debug:
+        msg: Cluster formed, stop bootstrap and carry on normal setup
+      run_once: yes
+
+  always:
+
+    - name: Stop K3s service bootstrap
+      systemd:
+        name: k3s-bootstrap
+        daemon_reload: no
+        enabled: no
+        state: stopped
+
+    - name: Remove K3s service bootstrap
+      file:
+        path: /etc/systemd/system/k3s-bootstrap.service
+        state: absent
+
+    - name: Wait for bootstrap to stop
+      pause:
+        seconds: 10
+      run_once: yes
+  when:
+    - groups['kube_master'] | length > 1
+    - bootstrap_runned.rc != 0
+
+...

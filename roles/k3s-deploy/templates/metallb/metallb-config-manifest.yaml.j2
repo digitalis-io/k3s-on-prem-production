@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: metallb-system
+  name: config
+data:
+  config: |
+    address-pools:
+    - name: default
+      protocol: layer2
+      addresses:
+        - {{ metallb_external_ip_range }}
+{% if metallb_internal_ip_range is defined %}
+    - name: metallb_internal_ip_range
+      protocol: layer2
+      addresses:
+        - {{ metallb_internal_ip_range }}
+{% endif %}

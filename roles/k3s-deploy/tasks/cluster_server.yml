@@ -1,0 +1,103 @@
+---
+# file" cluster_server.yml
+#
+- name: Deploy k3s master service
+  template:
+    src: k3s-server.service.j2
+    dest: /etc/systemd/system/k3s-server.service
+    mode: 0400
+    owner: root
+    group: root
+  register: service_deploy
+
+- block:
+    - name: Create directory for rancher
+      file:
+        path: "/etc/rancher/k3s"
+        state: directory
+        mode: '0700'
+        owner: root
+        group: root
+
+    - name: Deploy k3s custom registry
+      template:
+        src: registries.yaml.j2
+        dest: /etc/rancher/k3s/registries.yaml
+        mode: 0600
+        owner: root
+        group: root
+  when: docker_registry is defined
+
+- block:
+
+    - name: Create audit folder
+      file:
+        path: /var/lib/rancher/audit
+        state: directory
+        mode: 0700
+        owner: root
+        group: root
+
+    - name: Deploy Falco's audit policy and webhook
+      copy:
+        src: "falco/{{ item }}.j2"
+        dest: "/var/lib/rancher/audit/{{ item }}"
+        mode: 0400
+        owner: root
+        group: root
+      with_items:
+        - audit-policy.yaml
+        - webhook-config.yaml
+
+  when: falco_security_enabled
+
+- name: Stop K3s service
+  systemd:
+    name: k3s-server
+    state: stopped
+  failed_when: no
+  when: service_deploy.changed or (k3s_binary is defined and k3s_binary.changed)
+
+- name: Enable and check K3s service
+  systemd:
+    name: k3s-server
+    daemon_reload: yes
+    enabled: yes
+    state: started
+  when: service_deploy.changed or (k3s_binary is defined and k3s_binary.changed)
+
+- name: Wait for cluster to come up
+  shell: |
+    set -o pipefail
+    {{ kubectl_cmd }} get nodes | grep "master" | awk '{print $2}' | grep ^Ready
+  register: masters
+  until:
+    - masters.rc == 0
+    - (masters.stdout_lines | length ) == (groups['kube_master'] | length)
+  retries: 30
+  delay: 5
+  run_once: yes
+  changed_when: no
+
+- name: Save kube config as artifact
+  fetch:
+    src: /etc/rancher/k3s/k3s.yaml
+    dest: artifacts/k3s-kube-config
+    flat: yes
+  run_once: yes
+  changed_when: no
+
+- name: Fix local k3s config
+  replace:
+    path: artifacts/k3s-kube-config
+    regexp: 'https://0.0.0.0:6443'
+    replace: 'https://{{ keepalived_ip }}:6443'
+  become: no
+  changed_when: no
+  delegate_to: localhost
+  run_once: yes
+
+- name: Wait for masters to align
+  pause:
+    seconds: 5
+...

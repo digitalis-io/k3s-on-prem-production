@@ -1,0 +1,72 @@
+---
+# defaults file for k3s-deploy
+#
+ingress_hostname: default
+
+k3s_version: v1.20.5+k3s1
+k3s_binary_path: /usr/local/bin
+kubectl_cmd: "{{ k3s_binary_path }}/k3s kubectl"
+
+cluster_external_ip: "{{ ansible_host }}"
+cluster_cidr: 10.43.0.0/16
+service_cidr: 10.44.0.0/16
+
+metallb_enabled: yes
+metallb_external_ip_range: 192.168.1.200-192.168.1.240
+metallb_internal_ip_range: 10.10.90.100-10.10.90.240
+metallb_version: v0.9.6
+
+dashboard_enabled: yes
+dashboard_version: v2.2.0
+
+nginx_ingress_version: 0.45.0
+
+openebs_storage_enabled: yes
+openebs_version: 2.8.0
+
+kubeless_enabled: yes
+kubeless_version: v1.0.8
+
+falco_security_enabled: yes
+falco_sidekick_slack: ""
+falco_sidekick_slack_priority: "warning"
+falco_sidekick_kubeless_function: "{% if kubeless_enabled %}falco-pod-delete{% else %}''{% endif %}"
+falco_sidekick_kubeless_namespace: "{% if kubeless_enabled %}kubeless{% else %}''{% endif %}"
+falco_sidekick_kubeless_priority: "notice"
+### Possible customizations
+# falco_sidekick_alertmanager
+# falco_sidekick_alertmanager_priority
+# falco_sidekick_discord
+# falco_sidekick_discord_priority
+# falco_sidekick_googlechat
+# falco_sidekick_googlechat_priority
+# falco_sidekick_kubeless_function
+# falco_sidekick_kubeless_namespace
+# falco_sidekick_kubeless_priority
+# falco_sidekick_mattermost
+# falco_sidekick_mattermost_priority
+# falco_sidekick_rocketchat
+# falco_sidekick_rocketchat_priority
+# falco_sidekick_slack
+# falco_sidekick_slack_priority
+# falco_sidekick_teams
+# falco_sidekick_teams_priority
+#####
+
+openpolicy_enabled: yes
+
+keepalived_interface: eth0
+keepalived_addr_cidr: 192.168.122.100/24
+keepalived_ip: 192.168.122.100
+
+protected_files:
+    - /etc/falco/token
+    - /etc/k3s-encryption.yaml
+    - /etc/systemd/system/k3s-agent.service
+    - /etc/systemd/system/k3s-server.service
+    - /usr/lib/systemd/system/falco.service
+    - /usr/lib/systemd/system/rescue.service
+    - /var/lib/rancher/audit/audit-policy.yaml
+    - /var/lib/rancher/audit/webhook-config.yaml
+
+...

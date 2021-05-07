@@ -1,0 +1,327 @@
+---
+# Source: falcosidekick/templates/rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: falcosidekick
+  namespace: falco
+  labels:
+    app.kubernetes.io/name: falcosidekick
+    helm.sh/chart: falcosidekick-0.3.5
+    app.kubernetes.io/instance: falcosidekick
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: falcosidekick/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: falcosidekick
+  namespace: falco
+  labels:
+    app.kubernetes.io/name: falcosidekick
+    helm.sh/chart: falcosidekick-0.3.5
+    app.kubernetes.io/instance: falcosidekick
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  # Slack Output
+  SLACK_WEBHOOKURL: "{{ (falco_sidekick_slack | default('')) | b64encode }}"
+  SLACK_OUTPUTFORMAT: "YWxs"
+  SLACK_FOOTER: ""
+  SLACK_ICON: ""
+  SLACK_USERNAME: ""
+  SLACK_MINIMUMPRIORITY: "{{ (falco_sidekick_slack_priority | default('')) | b64encode }}"
+  SLACK_MESSAGEFORMAT: ""
+
+  # RocketChat Output
+  ROCKETCHAT_WEBHOOKURL: "{{ (falco_sidekick_rocketchat | default('')) | b64encode }}"
+  ROCKETCHAT_OUTPUTFORMAT: "YWxs"
+  ROCKETCHAT_ICON: ""
+  ROCKETCHAT_USERNAME: ""
+  ROCKETCHAT_MINIMUMPRIORITY: ""
+  ROCKETCHAT_MESSAGEFORMAT: "{{ (falco_sidekick_rocketchat_priority | default('')) | b64encode }}"
+
+  # Mattermost Output
+  MATTERMOST_WEBHOOKURL: "{{ (falco_sidekick_mattermost | default('')) | b64encode }}"
+  MATTERMOST_OUTPUTFORMAT: "YWxs"
+  MATTERMOST_FOOTER: ""
+  MATTERMOST_ICON: ""
+  MATTERMOST_USERNAME: ""
+  MATTERMOST_MINIMUMPRIORITY: "{{ (falco_sidekick_mattermost_priority | default('')) | b64encode }}"
+  MATTERMOST_MESSAGEFORMAT: ""
+
+  # Teams Output
+  TEAMS_WEBHOOKURL: "{{ (falco_sidekick_teams | default('')) | b64encode }}"
+  TEAMS_OUTPUTFORMAT: "YWxs"
+  TEAMS_ACTIVITYIMAGE: ""
+  TEAMS_MINIMUMPRIORITY: "{{ (falco_sidekick_teams_priority | default('')) | b64encode }}"
+
+  # Datadog Output
+  DATADOG_APIKEY: ""
+  DATADOG_HOST: ""
+  DATADOG_MINIMUMPRIORITY: ""
+
+  # AlertManager Output
+  ALERTMANAGER_HOSTPORT: "{{ (falco_sidekick_alertmanager | default('')) | b64encode }}"
+  ALERTMANAGER_MINIMUMPRIORITY: "{{ (falco_sidekick_alertmanager_priority | default('')) | b64encode }}"
+
+  # InfluxDB Output
+  INFLUXDB_USER: ""
+  INFLUXDB_PASSWORD: ""
+  INFLUXDB_HOSTPORT: ""
+  INFLUXDB_MINIMUMPRIORITY: ""
+  INFLUXDB_DATABASE: "ZmFsY28="
+
+  # AWS Output
+  AWS_ACCESSKEYID: ""
+  AWS_SECRETACCESSKEY: ""
+  AWS_REGION: ""
+  AWS_LAMBDA_FUNCTIONNAME: ""
+  AWS_LAMBDA_MINIMUMPRIORITY: ""
+  AWS_CLOUDWATCHLOGS_LOGGROUP: ""
+  AWS_CLOUDWATCHLOGS_LOGSTREAM: ""
+  AWS_CLOUDWATCHLOGS_MINIMUMPRIORITY: ""
+  AWS_SNS_TOPICARN: ""
+  AWS_SNS_RAWJSON: "ZmFsc2U="
+  AWS_SNS_MINIMUMPRIORITY: ""
+  AWS_SQS_URL: ""
+  AWS_SQS_MINIMUMPRIORITY: ""
+  AWS_S3_BUCKET: ""
+  AWS_S3_PREFIX: ""
+  AWS_S3_MINIMUMPRIORITY: ""
+
+  # SMTP Output
+  SMTP_USER: ""
+  SMTP_PASSWORD: ""
+  SMTP_HOSTPORT: ""
+  SMTP_FROM: ""
+  SMTP_TO: ""
+  SMTP_OUTPUTFORMAT: "aHRtbA=="
+  SMTP_MINIMUMPRIORITY: ""
+
+  # OpsGenie Output
+  OPSGENIE_APIKEY: ""
+  OPSGENIE_REGION: ""
+  OPSGENIE_MINIMUMPRIORITY: ""
+
+  # Discord Output
+  DISCORD_WEBHOOKURL: "{{ (falco_sidekick_discord | default('')) | b64encode }}"
+  DISCORD_ICON: ""
+  DISCORD_MINIMUMPRIORITY: "{{ (falco_sidekick_discord_priority | default('')) | b64encode }}"
+
+  # GCP Output
+  GCP_CREDENTIALS: ""
+  GCP_PUBSUB_PROJECTID: ""
+  GCP_PUBSUB_TOPIC: ""
+  GCP_PUBSUB_MINIMUMPRIORITY: ""
+  GCP_STORAGE_BUCKET: ""
+  GCP_STORAGE_PREFIX: ""
+  GCP_STORAGE_MINIMUMPRIORITY: "ZGVidWc="
+
+  # GoogleChat Output
+  GOOGLECHAT_WEBHOOKURL: "{{ (falco_sidekick_googlechat | default('')) | b64encode }}"
+  GOOGLECHAT_OUTPUTFORMAT: "YWxs"
+  GOOGLECHAT_MINIMUMPRIORITY: ""
+  GOOGLECHAT_MESSAGEFORMAT: "{{ (falco_sidekick_googlechat_priority | default('')) | b64encode }}"
+
+  # ElasticSearch Output
+  ELASTICSEARCH_HOSTPORT: ""
+  ELASTICSEARCH_INDEX: "ZmFsY28="
+  ELASTICSEARCH_TYPE: "ZXZlbnQ="
+  ELASTICSEARCH_MINIMUMPRIORITY: ""
+
+  # Loki Output
+  LOKI_HOSTPORT: ""
+  LOKI_MINIMUMPRIORITY: ""
+
+  # Nats Output
+  NATS_HOSTPORT: ""
+  NATS_MINIMUMPRIORITY: ""
+
+  # Stan Output
+  STAN_HOSTPORT: ""
+  STAN_CLUSTERID: ""
+  STAN_CLIENTID: ""
+  STAN_MINIMUMPRIORITY: ""
+
+  # Statsd
+  STATSD_FORWARDER: ""
+  STATSD_NAMESPACE: "ZmFsY29zaWRla2ljay4="
+
+  # Dogstatsd
+  DOGSTATSD_FORWARDER: ""
+  DOGSTATSD_NAMESPACE: "ZmFsY29zaWRla2ljay4="
+  DOGSTATSD_TAGS: ""
+
+  # WebHook Output
+  WEBHOOK_ADDRESS: ""
+  WEBHOOK_CUSTOMHEADERS: ""
+  WEBHOOK_MINIMUMPRIORITY: ""
+
+  # Azure Output
+  AZURE_EVENTHUB_NAME: ""
+  AZURE_EVENTHUB_NAMESPACE: ""
+  AZURE_EVENTHUB_MINIMUMPRIORITY: ""
+
+  # Kafka Output
+  KAFKA_HOSTPORT: ""
+  KAFKA_TOPIC: ""
+  KAFKA_PARTITION: "MA=="
+  KAFKA_MINIMUMPRIORITY: ""
+
+  # PagerDuty Output
+  PAGERDUTY_APIKEY: ""
+  PAGERDUTY_SERVICE: ""
+  PAGERDUTY_ASSIGNEE: ""
+  PAGERDUTY_ESCALATION_POLICY: ""
+  PAGERDUTY_MINIMUMPRIORITY: ""
+
+  # Kubeless Output
+  KUBELESS_FUNCTION: "{{ (falco_sidekick_kubeless_function | default('')) | b64encode }}"
+  KUBELESS_NAMESPACE: "{{ (falco_sidekick_kubeless_namespace | default('')) | b64encode }}"
+  KUBELESS_PORT: "ODA4MA=="
+  KUBELESS_MINIMUMPRIORITY: "{{ (falco_sidekick_kubeless_priority | default('')) | b64encode }}"
+
+  # OpenFaaS
+  OPENFAAS_GATEWAYNAMESPACE: "b3BlbmZhYXM="
+  OPENFAAS_GATEWAYSERVICE: "Z2F0ZXdheQ=="
+  OPENFAAS_FUNCTIONNAME: ""
+  OPENFAAS_FUNCTIONNAMESPACE: "b3BlbmZhYXMtZm4="
+  OPENFAAS_GATEWAYPORT: "ODA4MA=="
+  OPENFAAS_MINIMUMPRIORITY: ""
+
+  # Cloud Events Output
+  CLOUDEVENTS_ADDRESS: ""
+  CLOUDEVENTS_EXTENSION: ""
+  CLOUDEVENTS_MINIMUMPRIORITY: ""
+
+  # RabbitMQ Output
+  RABBITMQ_URL: ""
+  RABBITMQ_QUEUE: ""
+  RABBITMQ_MINIMUMPRIORITY: "ZGVidWc="
+
+  # WebUI Output
+---
+# Source: falcosidekick/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: falcosidekick
+  namespace: falco
+  labels:
+    app.kubernetes.io/name: falcosidekick
+    helm.sh/chart: falcosidekick-0.3.5
+    app.kubernetes.io/instance: falcosidekick
+    app.kubernetes.io/managed-by: Helm
+rules:
+- apiGroups:
+    - ""
+  resources:
+    - endpoints
+  resourceNames:
+    - falcosidekick
+  verbs:
+    - get
+---
+# Source: falcosidekick/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: falcosidekick
+  namespace: falco
+  labels:
+    app.kubernetes.io/name: falcosidekick
+    helm.sh/chart: falcosidekick-0.3.5
+    app.kubernetes.io/instance: falcosidekick
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: falcosidekick
+subjects:
+- kind: ServiceAccount
+  name: falcosidekick
+---
+# Source: falcosidekick/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: falcosidekick
+  namespace: falco
+  labels:
+    app.kubernetes.io/name: falcosidekick
+    helm.sh/chart: falcosidekick-0.3.5
+    app.kubernetes.io/instance: falcosidekick
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 2801
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: falcosidekick
+    app.kubernetes.io/instance: falcosidekick
+---
+# Source: falcosidekick/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: falcosidekick
+  namespace: falco
+  labels:
+    app.kubernetes.io/name: falcosidekick
+    helm.sh/chart: falcosidekick-0.3.5
+    app.kubernetes.io/instance: falcosidekick
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: falcosidekick
+      app.kubernetes.io/instance: falcosidekick
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: falcosidekick
+        app.kubernetes.io/instance: falcosidekick
+      annotations:
+        checksum/config: 909974db180e2a3bc793702a05ea34ea03adea51419c667a2acfec8479abce79
+    spec:
+      serviceAccountName: falcosidekick
+      securityContext:
+        runAsUser: 1234
+        fsGroup: 1234
+      containers:
+        - name: falcosidekick
+          image: "falcosecurity/falcosidekick:2.22.0"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 2801
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          envFrom:
+            - secretRef:
+                name: falcosidekick
+          env:
+            - name: DEBUG
+              value: "false"
+            - name: CUSTOMFIELDS
+              value: ""
+            - name: CHECKCERT
+              value: "true"
+          resources:
+            {}

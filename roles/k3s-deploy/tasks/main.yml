@@ -1,0 +1,139 @@
+---
+
+- name: Retrieve package facts
+  package_facts:
+    manager: "auto"
+  tags: always
+
+- include_tasks:
+    file: k3s_binary.yml
+    apply:
+      tags: always
+  tags: always
+
+- name: Setup control-plane
+  block:
+
+    # tasks file for k3s-deploy
+    - include_tasks:
+        file: cluster_bootstrap.yml
+        apply:
+          tags: always
+      tags: bootstrap
+
+    - include_tasks:
+        file: cluster_server.yml
+        apply:
+          tags: always
+      tags: server
+
+    - include_tasks:
+        file: cluster_keepalived.yml
+        apply:
+          tags: always
+      tags: server
+
+  when: "'kube_master' in group_names"
+
+- name: Read node-token from master
+  slurp:
+    src: /var/lib/rancher/k3s/server/node-token
+  delegate_to: "{{ groups['kube_master'][0] }}"
+  register: node_token
+  run_once: yes
+  tags:
+    - server
+    - agent
+
+- name: Store Master node-token
+  set_fact:
+    token: "{{ hostvars[groups['kube_master'][0]]['node_token'].content | b64decode | regex_replace('\n', '') }}"
+  tags:
+    - server
+    - agent
+
+- include_tasks:
+    file: cluster_agent.yml
+    apply:
+      tags: always
+  tags: agent
+  when: "'kube_node' in group_names"
+
+- include_tasks:
+    file: cluster_hardening.yml
+    apply:
+      tags: always
+  tags: hardening
+
+- name: Deploy internal components
+  block:
+
+    - name: Create custom manifest folder
+      file:
+        path: /var/lib/rancher/k3s/server/custom-manifests
+        state: directory
+        mode: 0700
+        owner: root
+        group: root
+      tags: always
+      when:
+        - "'kube_master' in group_names"
+
+    - include_tasks:
+        file: metallb.yml
+        apply:
+          tags: always
+      tags: loadbalancer
+      when:
+        - metallb_enabled
+
+    - include_tasks:
+        file: ingress.yml
+        apply:
+          tags: always
+      tags:
+        - ingress
+        - dashboard
+        - falco_security
+
+    - include_tasks:
+        file: dashboard.yml
+        apply:
+          tags: always
+      tags: dashboard
+      when:
+        - dashboard_enabled
+
+    - include_tasks:
+        file: kubeless.yml
+        apply:
+          tags: always
+      tags: kubeless
+      when:
+        - kubeless_enabled
+
+  tags: internal_components
+  when:
+    - "'kube_master' in group_names"
+
+- include_tasks:
+    file: falco_security.yml
+    apply:
+      tags: always
+  tags: falco_security
+  when:
+    - falco_security_enabled
+
+
+# CIS - 5.1.5 - 5.1.6
+- name: Security - Ensure that default service accounts are not actively used
+  command: |
+    {{ kubectl_cmd }} patch serviceaccount default -n {{ item }} -p 'automountServiceAccountToken: false'
+  register: kubectl
+  changed_when: "'no change' not in kubectl.stdout"
+  failed_when: "'no change' not in kubectl.stderr and kubectl.rc != 0"
+  run_once: yes
+  with_items: "{{ namespaces.stdout_lines }}"
+  when: "'kube_master' in group_names"
+
+...

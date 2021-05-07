@@ -1,0 +1,66 @@
+[Unit]
+After=network-online.target
+Description=Lightweight Kubernetes
+Documentation=https://k3s.io
+Wants=network-online.target
+
+###########
+# CIS - 1.2.1 to 1.2.32, 1.2.35
+# CIS - 1.3.1 to 1.3.7
+# CIS - 1.4.1, 1.4.2
+# CIS - 3.2.1
+# CIS - 4.1.1 to 4.1.10
+# CIS - 4.2.1 to 4.2.13
+# TLS - allow only strong ciphers
+###########
+[Service]
+ExecStart={{ k3s_binary_path }}/k3s server --cluster-init \
+    --kube-apiserver-arg='enable-admission-plugins=NodeRestriction,PodSecurityPolicy,NamespaceLifecycle,ServiceAccount,AlwaysPullImages' \
+    --kube-apiserver-arg='encryption-provider-config=/etc/k3s-encryption.yaml' \
+    --kube-apiserver-arg='request-timeout=300s' \
+    --kube-apiserver-arg='service-account-lookup=true' \
+    --kube-apiserver-arg=anonymous-auth=false \
+    --kube-apiserver-arg=audit-log-maxage=30 \
+    --kube-apiserver-arg=audit-log-maxbackup=30 \
+    --kube-apiserver-arg=audit-log-maxsize=30 \
+    --kube-apiserver-arg=audit-log-path=/var/lib/rancher/audit/audit.log \
+    --kube-apiserver-arg=tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_RSA_WITH_AES_128_GCM_SHA256,TLS_RSA_WITH_AES_256_GCM_SHA384 \
+    --kube-apiserver-arg=tls-min-version=VersionTLS12 \
+    --kube-controller-manager-arg='terminated-pod-gc-threshold=10' \
+    --kube-controller-manager-arg='use-service-account-credentials=true' \
+    --kubelet-arg='anonymous-auth=false' \
+    --kubelet-arg='streaming-connection-idle-timeout=5m' \
+    --kubelet-arg=tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_RSA_WITH_AES_128_GCM_SHA256,TLS_RSA_WITH_AES_256_GCM_SHA384 \
+    --protect-kernel-defaults=true \
+    --write-kubeconfig-mode 0600 \
+    --disable traefik \
+{% if metallb_enabled %}
+    --disable servicelb \
+{% endif %}
+{% if groups['kube_node'] is defined and groups['kube_node'] | length > 0%}
+    --node-taint CriticalAddonsOnly=true:NoExecute \
+{% endif %}
+{%if 'libselinux' in ansible_facts.packages %}
+    --selinux \
+{% endif %}
+    --advertise-address {{ ansible_host }} \
+    --bind-address {{ ansible_host }} \
+    --node-ip {{ ansible_host }} \
+    --cluster-cidr={{ cluster_cidr }} \
+    --service-cidr={{ service_cidr }} \
+    --tls-san {{ cluster_external_ip }}
+Environment="K3S_TOKEN={{ k3s_cluster_secret }}"
+Delegate=yes
+KillMode=process
+LimitCORE=infinity
+LimitNOFILE=1048576
+LimitNPROC=infinity
+Restart=on-failure
+RestartSec=5s
+TasksMax=infinity
+TimeoutStartSec=0
+Type=notify
+VType=notify
+
+[Install]
+WantedBy=multi-user.target

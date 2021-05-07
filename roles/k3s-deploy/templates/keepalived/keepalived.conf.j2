@@ -1,0 +1,24 @@
+vrrp_script chk_k3s_server {
+    script "pidof k3s-server"
+    interval 5
+    fall 2
+    timeout 10
+}
+
+vrrp_instance VI_1 {
+        state BACKUP
+        interface {{ keepalived_interface }}
+        virtual_router_id {{ keepalived_routerid | default('50') }}
+        priority {{ keepalived_priority | default('50') }}
+        advert_int 5
+        authentication {
+              auth_type PASS
+              auth_pass {{ keepalived_auth_pass | default('keepalived_pass' | hash('sha1')) }}
+        }
+        virtual_ipaddress {
+              {{ keepalived_addr_cidr }}
+        }
+        track_script {
+              chk_k3s_server
+        }
+}

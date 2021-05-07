@@ -1,0 +1,47 @@
+---
+
+- name: Dashboard - Deploy management dashboard manifest
+  get_url:
+    url: "https://raw.githubusercontent.com/kubernetes/dashboard/{{ dashboard_version }}/aio/deploy/recommended.yaml"
+    dest: '/var/lib/rancher/k3s/server/custom-manifests/dashboard-manifest.yaml'
+    owner: 'root'
+    group: 'root'
+    mode: '0600'
+
+- name: Dashboard - Deploy management dashboard
+  command: |
+    {{ kubectl_cmd }} apply -f /var/lib/rancher/k3s/server/custom-manifests/dashboard-manifest.yaml
+  changed_when: "'created' in kubectl.stdout or 'configured' in kubectl.stdout"
+  failed_when: "'AlreadyExists' not in kubectl.stderr and kubectl.rc != 0"
+  register: kubectl
+  run_once: yes
+
+- name: Dashboard - Wait for all pods to form
+  shell: |
+    set -o pipefail
+    {{ kubectl_cmd }} get pods --all-namespaces | tail -n +2 | grep -Ev "Completed|Running|Success"
+  register: pods
+  until: (pods.stdout_lines | length ) == 0
+  failed_when: no
+  changed_when: no
+  retries: 1000
+  delay: 10
+  run_once: yes
+
+- name: Dashboard - Deploy management dashboard ingress manifest
+  template:
+    src: dashboard/dashboard-ingress-manifest.yaml.j2
+    dest: /var/lib/rancher/k3s/server/custom-manifests/dashboard-ingress-manifest.yaml
+    owner: 'root'
+    group: 'root'
+    mode: '0600'
+
+- name: Dashboard - Deploy management dashboard ingress
+  command: |
+    {{ kubectl_cmd }} apply -f /var/lib/rancher/k3s/server/custom-manifests/dashboard-ingress-manifest.yaml
+  changed_when: "'created' in kubectl.stdout or 'configured' in kubectl.stdout"
+  failed_when: "'AlreadyExists' not in kubectl.stderr and kubectl.rc != 0"
+  register: kubectl
+  run_once: yes
+
+...

@@ -1,0 +1,58 @@
+- rule: Reverse shell
+  desc: Detect reverse shell established remote connection
+  condition: evt.type=dup and container and fd.num in (0, 1, 2) and fd.type in ("ipv4", "ipv6")
+  output: >
+    Reverse shell connection (user=%user.name %container.info process=%proc.name parent=%proc.pname cmdline=%proc.cmdline terminal=%proc.tty container_id=%container.id image=%container.image.repository fd.name=%fd.name fd.num=%fd.num fd.type=%fd.type fd.sip=%fd.sip)
+  priority: WARNING
+  tags: [container, shell, mitre_execution]
+  append: false
+
+- rule: Code Execution from TMP folder in Container
+  desc: Unknown Program runs inside container from suspicious folder
+  condition: >
+    spawned_process and container and
+    (proc.cmdline contains "/tmp" or
+    proc.cmdline contains "/dev/shm" or
+    proc.cmdline contains "/var/tmp" or
+    proc.cmdline contains "/var/run" or
+    proc.cmdline contains "/run" or
+    proc.cwd contains "/tmp" or
+    proc.cwd contains "/dev/shm" or
+    proc.cwd contains "/var/tmp" or
+    proc.cwd contains "/var/run" or
+    proc.cwd contains "/run") and
+    (proc.args contains "-e" or
+      proc.args contains "-c" or
+      proc.args contains "--sh-exec" or
+      proc.args contains "--exec" or
+      proc.args contains "-c " or
+      proc.args contains "--lua-exec"))
+  output: >
+    Execution of binary from a tmpfs folder (user=%user.name user_loginuid=%user.loginuid
+    command=%proc.cmdline container_id=%container.id container_name=%container.name image=%container.image.repository:%container.image.tag)
+  priority: WARNING
+  tags: [network, process, mitre_execution]
+
+- rule: Suspect Renamed Netcat Remote Code Execution in Container
+  desc: Netcat Program runs inside container that allows remote code execution
+  condition: >
+    spawned_process and container and
+    ((proc.args contains "ash" or
+      proc.args contains "bash" or
+      proc.args contains "csh" or
+      proc.args contains "ksh" or
+      proc.args contains "/bin/sh" or
+      proc.args contains "tcsh" or
+      proc.args contains "zsh" or
+      proc.args contains "dash") and
+    (proc.args contains "-e" or
+      proc.args contains "-c" or
+      proc.args contains "--sh-exec" or
+      proc.args contains "--exec" or
+      proc.args contains "-c " or
+      proc.args contains "--lua-exec"))
+  output: >
+    Suspect Reverse shell using renamed netcat runs inside container that allows remote code execution (user=%user.name user_loginuid=%user.loginuid
+    command=%proc.cmdline container_id=%container.id container_name=%container.name image=%container.image.repository:%container.image.tag)
+  priority: WARNING
+  tags: [network, process, mitre_execution]

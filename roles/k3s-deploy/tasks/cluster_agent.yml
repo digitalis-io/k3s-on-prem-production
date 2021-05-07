@@ -1,0 +1,81 @@
+---
+# file" cluster_join.yml
+#
+
+- name: Create directory for rancher
+  file:
+    path: "/etc/rancher/k3s"
+    state: directory
+    mode: '0700'
+    owner: root
+    group: root
+
+- name: Deploy k3s custom registry
+  template:
+    src: registries.yaml.j2
+    dest: /etc/rancher/k3s/registries.yaml
+    mode: 0600
+    owner: root
+    group: root
+  when: docker_registry is defined
+
+- name: Deploy k3s worker service
+  template:
+    src: k3s-agent.service.j2
+    dest: /etc/systemd/system/k3s-agent.service
+    mode: 0400
+    owner: root
+    group: root
+  register: service_deploy
+
+- name: Stop K3s service
+  systemd:
+    name: k3s-agent
+    state: stopped
+  failed_when: no
+  when: service_deploy.changed or (k3s_binary is defined and k3s_binary.changed)
+
+- name: Enable and check K3s service
+  systemd:
+    name: k3s-agent
+    daemon_reload: yes
+    enabled: yes
+    state: restarted
+  when: service_deploy.changed or (k3s_binary is defined and k3s_binary.changed)
+
+- name: Wait for workers
+  shell: |
+    set -o pipefail
+    {{ kubectl_cmd }}  get nodes  | awk '{print $2}' | grep ^Ready
+  register: workers
+  until:
+    - workers.rc == 0
+    - (workers.stdout_lines | length ) >= (groups['kube_cluster'] | length)
+  retries: 30
+  delay: 5
+  run_once: yes
+  changed_when: no
+  delegate_to: "{{ groups['kube_master'][0] }}"
+
+- name: Get removed workers
+  shell: |
+    set -o pipefail
+    {{ kubectl_cmd }} get nodes  | grep -Ev '{% for host in groups['kube_cluster'] %}{{ host }}|{% endfor %}AGE'|cut -d' ' -f1
+  register: removed_workers
+  run_once: yes
+  failed_when: no
+  changed_when: no
+  delegate_to: "{{ groups['kube_master'][0] }}"
+
+- name: Garbage Collect removed workers
+  command: "{{ item.0 }} {{ item.1 }}"
+  run_once: yes
+  with_nested:
+    - ["{{ kubectl_cmd }} drain", "{{ kubectl_cmd }} delete node"]
+    - '{{ removed_workers.stdout_lines }}'
+  when:
+    - removed_workers is defined
+    - removed_workers | length > 0
+  delegate_to: "{{ groups['kube_master'][0] }}"
+
+...

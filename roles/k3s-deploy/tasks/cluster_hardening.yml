@@ -1,0 +1,58 @@
+---
+
+# CIS 1.1.1 to 1.1.21
+- name: Cluster Hardening - Ensure folder permission are strict
+  command: |
+    find {{ item }} -not -path "*containerd*" -exec chmod -c go= {} \;
+  register: chmod_result
+  changed_when: "chmod_result.stdout != \"\""
+  with_items:
+    - /etc/rancher
+    - /var/lib/rancher
+
+- block:
+
+    - name: Security - Deploy restricted PSP manifests
+      copy:
+        src: "policy/{{ item }}"
+        dest: "/var/lib/rancher/k3s/server/manifests/{{ item }}"
+        owner: 'root'
+        group: 'root'
+        mode: '0600'
+      with_items:
+        - cluster-admin-role.yaml
+        - restricted-psp.yaml
+        - system-psp.yaml
+
+    - name: Security - Deploy restricted PSP
+      command: |
+         {{ kubectl_cmd }} apply -f /var/lib/rancher/k3s/server/manifests/{{ item }}
+      register: kubectl
+      changed_when: "'created' in kubectl.stdout or 'configured' in kubectl.stdout"
+      failed_when: "'AlreadyExists' not in kubectl.stderr and kubectl.rc != 0"
+      run_once: yes
+      with_items:
+        - cluster-admin-role.yaml
+        - restricted-psp.yaml
+        - system-psp.yaml
+
+    - name: Fetch namespace names
+      shell: |
+        set -o pipefail
+        {{ kubectl_cmd }} get namespaces -A | tail -n +2 | awk '{print $1}'
+      changed_when: no
+      register: namespaces
+
+    # CIS - 5.1.5 - 5.1.6
+    - name: Security - Ensure that default service accounts are not actively used
+      command: |
+        {{ kubectl_cmd }} patch serviceaccount default -n {{ item }} -p 'automountServiceAccountToken: false'
+      register: kubectl
+      changed_when: "'no change' not in kubectl.stdout"
+      failed_when: "'no change' not in kubectl.stderr and kubectl.rc != 0"
+      run_once: yes
+      with_items: "{{ namespaces.stdout_lines }}"
+
+  when: "'kube_master' in group_names"
+
+...

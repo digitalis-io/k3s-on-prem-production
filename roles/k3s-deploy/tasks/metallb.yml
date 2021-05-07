@@ -1,0 +1,67 @@
+---
+
+
+- name: LoadBalancer - Deploy management MetalLB namespace manifest
+  get_url:
+    url: "https://raw.githubusercontent.com/metallb/metallb/{{ metallb_version }}/manifests/namespace.yaml"
+    dest: '/var/lib/rancher/k3s/server/custom-manifests/metallb-namespace-manifest.yaml'
+    owner: 'root'
+    group: 'root'
+    mode: '0600'
+
+- name: LoadBalancer - Deploy management MetalLB manifest
+  get_url:
+    url: "https://raw.githubusercontent.com/metallb/metallb/{{ metallb_version }}/manifests/metallb.yaml"
+    dest: '/var/lib/rancher/k3s/server/custom-manifests/metallb-manifest.yaml'
+    owner: 'root'
+    group: 'root'
+    mode: '0600'
+
+- name: LoadBalancer - Deploy MetalLB
+  command: |
+    {{ kubectl_cmd }} apply \
+      -f /var/lib/rancher/k3s/server/custom-manifests/metallb-namespace-manifest.yaml \
+      -f /var/lib/rancher/k3s/server/custom-manifests/metallb-manifest.yaml
+  register: kubectl
+  changed_when: "'created' in kubectl.stdout or 'configured' in kubectl.stdout"
+  failed_when: "'AlreadyExists' not in kubectl.stderr and kubectl.rc != 0"
+  run_once: yes
+
+- name: LoadBalancer - Deploy MetalLB /secret
+  command: |
+    {{ kubectl_cmd }} create secret generic \
+      -n metallb-system \
+        memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
+  register: kubectl
+  changed_when: "'created' in kubectl.stdout or 'configured' in kubectl.stdout"
+  failed_when: "'AlreadyExists' not in kubectl.stderr and kubectl.rc != 0"
+  run_once: yes
+
+- name: LoadBalancer - Deploy MetalLB /config manifest
+  template:
+    src: metallb/metallb-config-manifest.yaml.j2
+    dest: /var/lib/rancher/k3s/server/custom-manifests/metallb-config-manifest.yaml
+    owner: 'root'
+    group: 'root'
+    mode: '0600'
+
+- name: LoadBalancer - Deploy MetalLB /config
+  command: |
+    {{ kubectl_cmd }} apply \
+      -f /var/lib/rancher/k3s/server/custom-manifests/metallb-config-manifest.yaml
+  register: kubectl
+  changed_when: "'created' in kubectl.stdout or 'configured' in kubectl.stdout"
+  failed_when: "'AlreadyExists' not in kubectl.stderr and kubectl.rc != 0"
+  run_once: yes
+
+- name: Wait for all pods to form
+  shell: |
+    set -o pipefail
+    {{ kubectl_cmd }} get pods -n metallb-system | tail -n +2 | grep -Ev "Completed|Running|Success"
+  register: pods
+  until: (pods.stdout_lines | length ) == 0
+  failed_when: no
+  changed_when: no
+  retries: 1000
+  delay: 10
+  run_once: yes

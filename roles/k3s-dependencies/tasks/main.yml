@@ -1,0 +1,12 @@
+---
+# tasks file for k3s-dependencies
+#
+
+- name: Retrieve package facts
+  package_facts:
+    manager: "auto"
+  tags: always
+
+- import_tasks: cluster_dependencies.yml
+
+...

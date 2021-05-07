@@ -1,0 +1,63 @@
+---
+
+- name: Gather the service facts
+  service_facts: null
+
+# CIS 1.1.22
+# STIG 020110
+- name: Disable service autofs
+  systemd:
+    name: autofs.service
+    enabled: 'no'
+    state: stopped
+    masked: 'yes'
+  when: '"autofs.service" in ansible_facts.services'
+
+- name: Disable service kdump
+  systemd:
+    name: kdump.service
+    enabled: 'no'
+    state: stopped
+    masked: 'yes'
+  when: '"kdump.service" in ansible_facts.services'
+
+- name: Install modprobe to disable filesystems
+  package:
+    name: '{{ modprobe_package }}'
+    state: 'present'
+
+- name: Check if efi is installed
+  stat:
+    path: "/sys/firmware/efi"
+  register: efi_installed
+
+- name: Remove vfat from fs-list if efi is used
+  set_fact:
+    os_unused_filesystems: "{{ os_unused_filesystems | difference('vfat') }}"
+  when:
+    - efi_installed.stat.isdir is defined
+    - efi_installed.stat.isdir
+
+- name: Remove used filesystems from fs-list
+  set_fact:
+    os_unused_filesystems: "{{ os_unused_filesystems | difference(ansible_mounts | map(attribute='fstype') | list) }}"
+  # we cannot do this on el6 and below, because these systems don't support the map function
+  when: not ((ansible_facts.os_family in ['Oracle Linux', 'RedHat']) and ansible_facts.distribution_major_version < '7')
+
+- name: Disable unused modules
+  template:
+    src: 'modprobe_modules.j2'
+    dest: '/etc/modprobe.d/blacklist-modules.conf'
+    owner: 'root'
+    group: 'root'
+    mode: '0600'
+
+- name: Disable unused filesystems
+  template:
+    src: 'modprobe_filesystems.j2'
+    dest: '/etc/modprobe.d/blacklist-filesystems.conf'
+    owner: 'root'
+    group: 'root'
+    mode: '0600'
+
+...

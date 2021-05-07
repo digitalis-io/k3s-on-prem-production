@@ -1,0 +1,60 @@
+---
+
+- name: Install keepalived
+  package:
+    name: keepalived
+    state: present
+
+- name: Add firewalld rich rules /vrrp
+  firewalld:
+    rich_rule: rule protocol value="vrrp" accept
+    permanent: yes
+    immediate: yes
+    state: enabled
+    zone: "{{ cluster_zone | default('public') }}"
+
+- name: Set sysctl variables
+  sysctl:
+    ignoreerrors: yes
+    name: '{{ item.name }}'
+    reload: yes
+    state: present
+    sysctl_set: yes
+    value: '{{ item.value }}'
+  with_items:
+    - {name: net.ipv4.ip_nonlocal_bind, value: 1}
+
+- name: Configure keepalived
+  template:
+    src: keepalived/keepalived.conf.j2
+    dest: /etc/keepalived/keepalived.conf
+    owner: 'root'
+    group: 'root'
+    mode: '0600'
+  register: keepalived_service
+
+- name: Stop keepalived Service
+  systemd:
+    name: keepalived
+    daemon_reload: yes
+    enabled: yes
+    state: stopped
+  when: keepalived_service.changed
+
+- name: Enable keepalived Service
+  systemd:
+    name: keepalived
+    daemon_reload: yes
+    enabled: yes
+    state: started
+
+- name: Wait for HA ip to come up
+  command: |
+    ping -c 1 -w 1 {{ keepalived_ip }}
+  register: ping
+  until:
+    - ping.rc == 0
+  retries: 30
+  delay: 5
+  run_once: yes
+  changed_when: no

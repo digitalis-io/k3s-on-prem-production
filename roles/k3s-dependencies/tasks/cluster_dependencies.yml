@@ -1,0 +1,199 @@
+---
+# tasks file for k3s-dependencies
+#
+- name: Install k3s dependencies
+  package:
+    state: present
+    name: "{{ k3s_dependencies }}"
+
+- name: Update the /etc/hosts file with node name
+  lineinfile:
+    path: /etc/hosts
+    regexp: "{{ hostvars[item]['ansible_host'] }}  {{ hostvars[item]['ansible_hostname'] }}  {{ item }}"
+    line: "{{ hostvars[item]['ansible_host'] }}  {{ hostvars[item]['ansible_hostname'] }}  {{ item }}"
+    state: present
+    backup: yes
+  with_items: "{{ groups['kube_cluster'] }}"
+
+- name: Add the br_netfilter module
+  modprobe:
+    name: br_netfilter
+    state: present
+
+- name: Persist br_netfilter module
+  blockinfile:
+    create: yes
+    path: /etc/modules-load.d/br_netfilter.conf
+    block: |
+      br_netfilter
+    mode: 0600
+
+- name: Add the overlay module
+  modprobe:
+    name: overlay
+    state: present
+
+- name: Persist overlay module
+  blockinfile:
+    create: yes
+    path: /etc/modules-load.d/overlay.conf
+    block: |
+      overlay
+    mode: 0600
+
+- name: Set sysctl ipv4 and ipv6 conf
+  sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    sysctl_set: yes
+    state: present
+    reload: yes
+  with_items:
+    - {key: kernel.keys.root_maxbytes, value: 25000000}
+    - {key: kernel.keys.root_maxkeys, value: 1000000}
+    - {key: kernel.panic, value: 10}
+    - {key: kernel.panic_on_oops, value: 1}
+    - {key: net.bridge.bridge-nf-call-arptables, value: 1}
+    - {key: net.bridge.bridge-nf-call-ip6tables, value: 1}
+    - {key: net.bridge.bridge-nf-call-iptables, value: 1}
+    - {key: net.ipv4.conf.all.forwarding, value: 1}
+    - {key: net.ipv4.conf.all.route_localnet, value: 1}
+    - {key: net.ipv4.conf.default.forwarding, value: 1}
+    - {key: net.ipv4.ip_forward, value: 1}
+    - {key: net.ipv6.conf.all.forwarding, value: 1}
+    - {key: net.ipv6.conf.default.forwarding, value: 1}
+    - {key: net.netfilter.nf_conntrack_max, value: 131072}
+    - {key: net.netfilter.nf_conntrack_tcp_timeout_close_wait, value: 3600}
+    - {key: net.netfilter.nf_conntrack_tcp_timeout_established, value: 86400}
+    - {key: vm.overcommit_memory, value: 1}
+    - {key: vm.panic_on_oom, value: 0}
+
+- name: Setup Firewalld
+  block:
+
+    ## Start block
+
+    - name: Set firewalld backend to iptables
+      replace:
+        path: /etc/firewalld/firewalld.conf
+        regexp: FirewallBackend=nftables$
+        replace: FirewallBackend=iptables
+        backup: yes
+      register: firewalld_backend
+
+    - name: Reboot machines if firewalld backend updated
+      command: reboot
+      async: 1
+      poll: 0
+      when: firewalld_backend.changed
+
+    - name: Wait for system to become reachable
+      wait_for_connection:
+        delay: 1
+        timeout: 300
+      when: firewalld_backend.changed
+
+    - block:
+
+        - name: Set cluster zone
+          set_fact:
+            cluster_zone: internal
+
+        - name: Get internal zone interface   # noqa command-instead-of-module
+          command: "firewall-cmd --list-interface --zone=internal"
+          register: internal_zone
+          changed_when: no
+
+        # Using command to workarount bug https://github.com/ansible-collections/ansible.posix/issues/75
+        - name: Set internal interface to internal zone   # noqa command-instead-of-module
+          command: "{{ item }}"
+          with_items:
+            - "firewall-cmd --zone=internal --change-interface={{ internal_interface }} --permanent"
+            - "firewall-cmd --reload"
+          when: internal_interface not in ''.join(internal_zone.stdout_lines)
+
+        - name: Open external ports
+          firewalld:
+            state: enabled
+            immediate: yes
+            permanent: yes
+            port: '{{ item }}'
+            zone: public
+          with_items:
+            - 80/tcp
+            - 443/tcp
+            - 6443/tcp
+
+      when: external_interface != internal_interface
+
+    - name: Add firewalld masquerading
+      firewalld:
+        masquerade: yes
+        state: enabled
+        permanent: yes
+        immediate: yes
+        zone: "{{ item }}"
+      with_items:
+        - internal
+        - public
+
+    - name: Add firewalld rich rules /flannel
+      firewalld:
+        rich_rule: rule family=ipv4 source address={{ item.1 }} accept
+        permanent: yes
+        immediate: yes
+        state: enabled
+        zone: "{{ item.0 }}"
+      with_nested:
+        - ["{{ cluster_zone | default('public') }}"]
+        - ["{{ cluster_cidr }}", "{{ service_cidr }}"]
+
+    - name: Open ports /master
+      firewalld:
+        state: enabled
+        permanent: yes
+        immediate: yes
+        port: '{{ item }}'
+        zone: "{{ cluster_zone | default('public') }}"
+      with_items:
+        - 2379/tcp    # etcd client requests
+        - 2380/tcp    # etcd peer communication
+        - 6443/tcp    # k8s api
+      when: "'kube_master' in group_names"
+
+    - name: Open ports /all
+      firewalld:
+        state: enabled
+        immediate: yes
+        permanent: yes
+        port: '{{ item }}'
+        zone: "{{ cluster_zone | default('public') }}"
+      with_items:
+        - 80/tcp
+        - 443/tcp
+        - 7946/udp          # MetalLB speaker port
+        - 7946/tcp          # MetalLB speaker port
+        - 8472/udp          # Canal/Flannel VXLAN overlay networking
+        - 9099/tcp          # Canal/Flannel livenessProbe/readinessProbe
+        - 10250-10255/tcp   # kubelet API + Ingress controller livenessProbe/readinessProbe
+        - 30000-32767/tcp   # NodePort port range
+        - 30000-32767/udp   # NodePort port range
+
+  ## End block
+  when:
+    - "'firewalld' in ansible_facts.packages"
+  tags: firewall
+
+# Workaround to the RPM/YUM hardening
+# being the GPG key enforced at rpm level, we cannot use
+# the dnf or yum module of ansible
+- name: Install SELINUX Policies  # noqa command-instead-of-module
+  command: |
+    rpm --define '_pkgverify_level digest' -i {{ k3s_selinux_rpm }}
+  register: rpm_install
+  changed_when: "rpm_install.rc == 0"
+  failed_when: "'already installed' not in rpm_install.stderr and rpm_install.rc != 0"
+  when:
+    - "'libselinux' in ansible_facts.packages"
+
+...

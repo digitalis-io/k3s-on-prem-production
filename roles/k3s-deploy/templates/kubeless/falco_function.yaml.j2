@@ -1,0 +1,193 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: falco-pod-delete
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: falco-pod-delete-cluster-role
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "delete"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: falco-pod-delete-cluster-role-binding
+roleRef:
+  kind: ClusterRole
+  name: falco-pod-delete-cluster-role
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: falco-pod-delete
+    namespace: kubeless
+---
+apiVersion: kubeless.io/v1beta1
+kind: Function
+metadata:
+  namespace: kubeless
+  finalizers:
+    - kubeless.io/function
+  generation: 2
+  labels:
+    created-by: kubeless
+    function: falco-pod-delete
+  name: falco-pod-delete
+spec:
+  checksum: sha256:b4c2ddf9c31d9c5420e6a6887ed811b235f3c65108b0fe7876708a6f5d7b492e
+  deps: |
+    kubernetes>=12.0.1
+    requests
+  function-content-type: text
+  function: |
+    import json
+    import os
+    import time
+    from datetime import datetime
+
+    import requests
+    from kubernetes import client, config
+
+    config.load_incluster_config()
+
+
+    def send_slack(rule, pod, namespace, output, timestamp):
+        data = {
+            "attachments":
+                [
+                    {
+                        "mrkdwn_in": ["text"],
+                        "color":
+                            "danger",
+                        "pretext":
+                            "AUTOMATIC ACTION FIRED",
+                        "author_name":
+                            "falco-pod",
+                        "title":
+                            "Deleted Pod",
+                        "text":
+                            rule,
+                        "fields":
+                            [
+                                {
+                                    "title": "Priority",
+                                    "value": "High",
+                                    "short": "false"
+                                }, {
+                                    "title": "Pod Name",
+                                    "value": pod,
+                                    "short": "true"
+                                }, {
+                                    "title": "Pod Namespace",
+                                    "value": namespace,
+                                    "short": "true"
+                                }, {
+                                    "title": "Complete log",
+                                    "value": output,
+                                    "short": "false"
+                                }, {
+                                    "title":
+                                        "Time",
+                                    "value":
+                                        str(
+                                            datetime.fromtimestamp(
+                                                timestamp / 1000000000
+                                            )
+                                        ),
+                                    "short":
+                                        "false"
+                                }
+                            ],
+                    }
+                ]
+        }
+        webhook_url = os.environ['SLACK_WEBHOOK']
+        slack_data = json.dumps(data)
+        requests.post(
+            webhook_url,
+            data=slack_data,
+            headers={'Content-Type': 'application/json'}
+        )
+
+
+    def pod_delete(event, context):
+        rule = event['data']['rule'] or None
+        output_fields = event['data']['output_fields'] or None
+
+        if rule and output_fields:
+            if (
+                rule == "Debugfs Launched in Privileged Container" or
+                rule == "Launch Package Management Process in Container" or
+                rule == "Launch Remote File Copy Tools in Container" or
+                rule == "Launch Suspicious Network Tool in Container" or
+                rule == "Mkdir binary dirs" or rule == "Modify binary dirs" or
+                rule == "Mount Launched in Privileged Container" or
+                rule == "Netcat Remote Code Execution in Container" or
+                rule == "Read sensitive file trusted after startup" or
+                rule == "Read sensitive file untrusted" or
+                rule == "Run shell untrusted" or
+                rule == "Sudo Potential Privilege Escalation" or
+                rule == "Terminal shell in container" or
+                rule == "The docker client is executed in a container" or
+                rule == "User mgmt binaries" or
+                rule == "Write below binary dir" or
+                rule == "Write below etc" or
+                rule == "Write below monitored dir" or
+                rule == "Write below root" or
+                rule == "Create files below dev" or
+                rule == "Redirect stdout/stdin to network connection" or
+                rule == "Reverse shell" or
+                rule == "Code Execution from TMP folder in Container" or
+                rule == "Suspect Renamed Netcat Remote Code Execution in Container"
+            ):
+
+                if output_fields['k8s.ns.name'] and output_fields['k8s.pod.name']:
+                    pod = output_fields['k8s.pod.name']
+                    namespace = output_fields['k8s.ns.name']
+                    print(
+                        f"Rule: \"{rule}\" fired: Deleting pod \"{pod}\" in namespace \"{namespace}\""
+                    )
+                    client.CoreV1Api().delete_namespaced_pod(
+                        name=pod,
+                        namespace=namespace,
+                        body=client.V1DeleteOptions(),
+                        grace_period_seconds=0
+                    )
+                    send_slack(
+                        rule, pod, namespace, event['data']['output'],
+                        output_fields['evt.time']
+                    )
+
+            elif (rule == "Attach/Exec Pod" or rule == "Create HostNetwork Pod"):
+                if output_fields['ka.target.name'] and output_fields[
+                    'ka.target.namespace']:
+                    pod = output_fields['ka.target.name']
+                    namespace = output_fields['ka.target.namespace']
+                    print(
+                        f"Rule: \"{rule}\" fired: Deleting pod \"{pod}\" in namespace \"{namespace}\""
+                    )
+                    client.CoreV1Api().delete_namespaced_pod(
+                        name=pod,
+                        namespace=namespace,
+                        body=client.V1DeleteOptions(),
+                        grace_period_seconds=0
+                    )
+                    send_slack(
+                        rule, pod, namespace, event['data']['output'],
+                        time.time_ns()
+                    )
+  handler: falco-pod-delete.pod_delete
+  runtime: python3.7
+  deployment:
+    spec:
+      template:
+        spec:
+          serviceAccountName: falco-pod-delete
+          containers:
+          - env:
+            - name: SLACK_WEBHOOK
+              value: "{{ falco_sidekick_slack }}"
+---

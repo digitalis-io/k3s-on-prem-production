@@ -1,0 +1,93 @@
+---
+
+- name: Ingress - Add external network ingress
+  template:
+    src: ingress/nginx-ingress-external-manifest.yaml.j2
+    dest: /var/lib/rancher/k3s/server/custom-manifests/nginx-ingress-external-manifest.yaml
+    owner: 'root'
+    group: 'root'
+    mode: '0600'
+
+- name: Ingress - Deploy external ingress-nginx
+  command: |
+     {{ kubectl_cmd }} apply \
+     -f /var/lib/rancher/k3s/server/custom-manifests/nginx-ingress-external-manifest.yaml
+  register: kubectl
+  changed_when: "'created' in kubectl.stdout or 'configured' in kubectl.stdout"
+  failed_when: "'AlreadyExists' not in kubectl.stderr and kubectl.rc != 0"
+  run_once: yes
+
+- name: Ingress - Wait for all pods to form
+  shell: |
+    set -o pipefail
+    {{ kubectl_cmd }} get pods -n ingress-nginx | tail -n +2 | grep -Ev "Completed|Running|Success"
+  register: pods
+  until: (pods.stdout_lines | length ) == 0
+  failed_when: no
+  changed_when: no
+  retries: 1000
+  delay: 10
+  run_once: yes
+
+- block:
+
+    - name: Ingress Internal - Add internal network ingress manifest if defined
+      template:
+        src: ingress/nginx-ingress-internal-manifest.yaml.j2
+        dest: /var/lib/rancher/k3s/server/custom-manifests/nginx-ingress-internal-manifest.yaml
+        owner: 'root'
+        group: 'root'
+        mode: '0600'
+
+    - name: Ingress Internal - Deploy internal ingress-nginx
+      command: |
+         {{ kubectl_cmd }} apply \
+         -f /var/lib/rancher/k3s/server/custom-manifests/nginx-ingress-internal-manifest.yaml
+      register: kubectl
+      changed_when: "'created' in kubectl.stdout or 'configured' in kubectl.stdout"
+      failed_when: "'AlreadyExists' not in kubectl.stderr and kubectl.rc != 0"
+      run_once: yes
+
+    - name: Ingress Internal - Wait for all pods to form
+      shell: |
+        set -o pipefail
+        {{ kubectl_cmd }} get pods -n ingress-nginx-internal | tail -n +2 | grep -Ev "Completed|Running|Success"
+      register: pods
+      until: (pods.stdout_lines | length ) == 0
+      failed_when: no
+      changed_when: no
+      retries: 1000
+      delay: 10
+      run_once: yes
+
+    - name: Ingress Internal - Fetch internal LB adress
+      shell: |
+        set -o pipefail
+        {{ kubectl_cmd }} get svc -n ingress-nginx-internal ingress-nginx-internal-controller | awk '{print $4}' | tail -n 1
+      changed_when: no
+      register: lb_internal_address
+
+    - name: Ingress - Set default internal ingress host
+      set_fact:
+        internal_ingress_hostname: "{{ lb_internal_address.stdout }}.nip.io"
+
+  when: metallb_internal_ip_range is defined
+
+- block:
+
+    - name: Ingress - Fetch external LB adress
+      shell: |
+        set -o pipefail
+        {{ kubectl_cmd }} get svc -n ingress-nginx ingress-nginx-controller | awk '{print $4}' | tail -n 1
+      changed_when: no
+      register: lb_address
+
+    - name: Ingress - Set default ingress host
+      set_fact:
+        ingress_hostname: "{{ lb_address.stdout }}.nip.io"
+
+  when:
+    - ingress_hostname == 'default'
+
+
+...

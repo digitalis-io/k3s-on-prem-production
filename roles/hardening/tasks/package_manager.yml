@@ -1,0 +1,57 @@
+---
+
+# CIS 1.2.1
+# CIS 1.2.2
+# CIS 1.2.3
+# STIG 020050
+# STIG 020060
+# STIG 020200
+- block:
+
+    - name: Ensure GPG check Enabled for Local Packages (Yum)
+      ini_file:
+        dest: /etc/yum.conf
+        section: main
+        option: "{{ item.key }}"
+        value: "{{ item.value }}"
+        create: yes
+        owner: 'root'
+        group: 'root'
+        mode: '0644'
+      with_items:
+        - {key: fastestmirror, value: true}
+        - {key: gpgcheck, value: 1}
+        - {key: ip_resolve, value: 4}
+        - {key: keepcache, value: true}
+        - {key: localpkg_gpgcheck, value: 1}
+        - {key: clean_requirements_on_remove, value: 1}
+
+    - name: Ensure GPG check Enabled for Local Packages (DNF)
+      ini_file:
+        dest: /etc/dnf/dnf.conf
+        section: main
+        option: "{{ item.key }}"
+        value: "{{ item.value }}"
+        create: yes
+        owner: 'root'
+        group: 'root'
+        mode: '0644'
+      with_items:
+        - {key: fastestmirror, value: true}
+        - {key: gpgcheck, value: 1}
+        - {key: ip_resolve, value: 4}
+        - {key: keepcache, value: true}
+        - {key: localpkg_gpgcheck, value: 1}
+        - {key: clean_requirements_on_remove, value: 1}
+
+    - name: Ensure GPG check is globally activated (rpm)
+      lineinfile:
+        dest: /etc/rpm/macros.dist
+        state: present
+        regexp: "^%_pkgverify_level.*"
+        line: '%_pkgverify_level all'
+
+  when:
+    - ansible_os_family == "RedHat"
+
+...

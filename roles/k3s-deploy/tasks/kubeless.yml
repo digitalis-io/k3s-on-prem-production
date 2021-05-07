@@ -1,0 +1,42 @@
+---
+
+- name: Kubeless - Deploy kubeless manifest
+  get_url:
+    url: "https://github.com/kubeless/kubeless/releases/download/{{ kubeless_version }}/kubeless-{{ kubeless_version }}.yaml"
+    dest: '/var/lib/rancher/k3s/server/custom-manifests/kubeless-manifest.yml'
+    owner: 'root'
+    group: 'root'
+    mode: '0600'
+
+- name: Kubeless - Deploy kubeless RBAC manifest
+  copy:
+    src: kubeless/kubeless-rbac-manifest.yaml
+    dest: '/var/lib/rancher/k3s/server/custom-manifests/kubeless-rbac-manifest.yaml'
+    owner: 'root'
+    group: 'root'
+    mode: '0600'
+
+- name: Kubeless - Deploy kubeless
+  command: "{{ item }}"
+  register: kubectl
+  changed_when: "'created' in kubectl.stdout or 'configured' in kubectl.stdout"
+  failed_when: "'AlreadyExists' not in kubectl.stderr and kubectl.rc != 0"
+  with_items:
+    - "{{ kubectl_cmd }} create ns kubeless"
+    - "{{ kubectl_cmd }} apply -f /var/lib/rancher/k3s/server/custom-manifests/kubeless-rbac-manifest.yaml"
+    - "{{ kubectl_cmd }} apply -f /var/lib/rancher/k3s/server/custom-manifests/kubeless-manifest.yml"
+  run_once: yes
+
+- name: Wait for all pods to form
+  shell: |
+    set -o pipefail
+    {{ kubectl_cmd }} get pods -n kubeless | tail -n +2 | grep -Ev "Completed|Running|Success"
+  register: pods
+  until: (pods.stdout_lines | length ) == 0
+  failed_when: no
+  changed_when: no
+  retries: 1000
+  delay: 10
+  run_once: yes
+
+...

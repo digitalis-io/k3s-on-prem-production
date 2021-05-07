@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: falcosidekick-ingress
+  namespace: falco
+  annotations:
+    kubernetes.io/ingress.class: "internal-ingress-nginx"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+spec:
+  rules:
+{% if metallb_internal_ip_range is defined %}
+  - host: falcosidekick.{{ internal_ingress_hostname }}
+{% else %}
+  - host: falcosidekick.{{ ingress_hostname }}
+{% endif %}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: falcosidekick
+            port:
+              number: 2801

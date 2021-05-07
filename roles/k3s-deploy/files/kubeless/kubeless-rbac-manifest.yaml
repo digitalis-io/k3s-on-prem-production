@@ -1,0 +1,28 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kubeless-psp
+  namespace: kubeless
+rules:
+  - apiGroups: [policy]
+    resources: [podsecuritypolicies]
+    verbs: [use]
+    resourceNames: [system-unrestricted-psp]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kubeless-psp
+  namespace: kubeless
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: kubeless-psp
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: kubeless
+  - kind: ServiceAccount
+    name: controller-acct
+    namespace: kubeless

@@ -1,0 +1,14 @@
+---
+
+# Provision the cluster
+- name: K3s Deployment
+  become: yes
+  gather_facts: True
+  hosts: kube_cluster
+  max_fail_percentage: 0
+  roles:
+    - hardening
+    - k3s-dependencies
+    - k3s-deploy
+
+...

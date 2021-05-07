@@ -1,0 +1,26 @@
+---
+# defaults file for k3s-dependencies
+#
+cluster_cidr: 10.43.0.0/16
+service_cidr: 10.44.0.0/16
+
+k3s_dependencies:
+  - conntrack-tools
+  - curl
+  - ebtables
+  - epel-release
+  - ethtool
+  - gawk
+  - grep
+  - ipvsadm
+  - iscsi-initiator-utils
+  - libseccomp
+  - socat
+  - util-linux
+
+external_interface: eth0
+internal_interface: eth0
+
+k3s_selinux_rpm: "https://github.com/k3s-io/k3s-selinux/releases/download/v0.3.stable.0/k3s-selinux-0.3-0.el8.noarch.rpm"
+
+...

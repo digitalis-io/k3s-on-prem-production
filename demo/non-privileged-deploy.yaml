@@ -1,0 +1,25 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: not-privileged-deploy
+  name: not-privileged-deploy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: not-privileged-deploy
+  template:
+    metadata:
+      labels:
+        app: not-privileged-deploy
+    spec:
+      containers:
+        - image: alpine
+          name: alpine
+          stdin: true
+          tty: true
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000

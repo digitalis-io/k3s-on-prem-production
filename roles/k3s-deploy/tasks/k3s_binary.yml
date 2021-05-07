@@ -1,0 +1,26 @@
+---
+
+- name: Download k3s locally
+  get_url:
+    url: "https://github.com/rancher/k3s/releases/download/{{ k3s_version }}/k3s"
+    checksum: "sha256:https://github.com/rancher/k3s/releases/download/{{ k3s_version }}/sha256sum-amd64.txt"
+    dest: "artifacts/k3s-binary-{{ k3s_version }}"
+    mode: 0500
+  become: no
+  delay: 3
+  delegate_to: localhost
+  register: result
+  retries: 3
+  run_once: yes
+  until: result is not failed
+
+- name: Deploy k3s binary
+  copy:
+    src: "artifacts/k3s-binary-{{ k3s_version }}"
+    dest: "{{ k3s_binary_path }}/k3s"
+    mode: 0500
+    owner: root
+    group: root
+  register: k3s_binary
+
+...

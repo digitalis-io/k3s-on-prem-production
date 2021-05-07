@@ -1,0 +1,113 @@
+---
+
+- name: Update and upgrade apt packages
+  apt:
+    upgrade: yes
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+
+# STIG 030000
+- name: Install auditd package
+  package:
+    name: '{{ auditd_package }}'
+    state: 'present'
+
+# CIS 4.1.1.1
+# CIS 4.1.1.2
+# CIS 4.1.1.3
+# STIG 030330
+# STIG 030350
+- name: Configure auditd
+  template:
+    src: 'auditd.conf.j2'
+    dest: '/etc/audit/auditd.conf'
+    owner: 'root'
+    group: 'root'
+    mode: '0600'
+
+- name: Collect privileged binaries
+  shell: |
+    set -o pipefail
+    for i in  $(df | grep '^/dev' | awk '{ print $NF }'); do
+      find $i -xdev -type f -perm -4000 -o -type f -perm -2000 2>/dev/null;
+    done
+  changed_when: no
+  check_mode: no
+  register: privileged_bins
+
+
+# CIS 4.1.4
+# CIS 4.1.5
+# CIS 4.1.6
+# CIS 4.1.7
+# CIS 4.1.8
+# CIS 4.1.9
+# CIS 4.1.10
+# CIS 4.1.11
+# CIS 4.1.12
+# CIS 4.1.13
+# CIS 4.1.14
+# CIS 4.1.15
+# CIS 4.1.16
+# CIS 4.1.17
+# CIS 4.1.18
+# STIG 030000
+# STIG 030010
+# STIG 030360
+# STIG 030370 to 030550
+# STIG 030740
+# STIG 030819
+# STIG 030820
+# STIG 030821
+# STIG 030830
+# STIG 030880 to 030910
+# STIG 030560 to 030860
+# STIG 030600 to 030874
+- name: Deploy Auditing rules
+  template:
+    src: "audit/{{ item }}.j2"
+    dest: "/etc/audit/rules.d/{{ item }}"
+    owner: 'root'
+    group: 'root'
+    mode: '0600'
+  with_items:
+    - access.rules
+    - actions.rules
+    - deletion.rules
+    - identity.rules
+    - logins.rules
+    - MAC_policy.rules
+    - modules.rules
+    - mounts.rules
+    - perm_mod.rules
+    - priv_commands.rules
+    - scope.rules
+    - session.rules
+    - system_local.rules
+    - time_change.rules
+
+- name: Make rules immutable
+  lineinfile:
+    dest: /etc/audit/rules.d/99_seal.rules
+    line: "-e 2"
+    state: present
+    create: yes
+    owner: 'root'
+    group: 'root'
+    mode: '0600'
+
+- name: Reload auditd service
+  command: /sbin/service auditd restart
+  changed_when: no
+  check_mode: no
+  failed_when: no
+  args:
+    warn: no
+
+# CIS 4.1.2
+# STIG 030000
+- name: Enable service auditd
+  service:
+    name: auditd
+    enabled: 'yes'
+    state: started

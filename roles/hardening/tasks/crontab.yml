@@ -1,0 +1,57 @@
+---
+
+# CIS 1.3.1
+# STIG 020030
+# STIG 020040
+- name: Ensure AIDE is installed
+  package:
+    name: '{{ aide_package }}'
+    state: present
+
+# CIS 5.1.1
+- name: "Ensure cron daemon is enabled"
+  service:
+    name: crond
+    enabled: yes
+
+# CIS 1.3.2
+- name: Configure Periodic Execution of AIDE
+  cron:
+    name: run AIDE check
+    minute: "5"
+    hour: "4"
+    weekday: "0"
+    user: root
+    job: /usr/sbin/aide --check
+
+# CIS 5.1.2
+# CIS 5.1.3
+# CIS 5.1.4
+# CIS 5.1.5
+# CIS 5.1.6
+# CIS 5.1.7
+- name: Find cron files and directories
+  find:
+    paths:
+      - /etc
+    patterns:
+      - cron.hourly
+      - cron.daily
+      - cron.weekly
+      - cron.monthly
+      - cron.d
+      - crontab
+      - anacrontab
+    file_type: any
+  register: cron_directories
+
+# CIS 5.1.8
+- name: Ensure permissions on cron files and directories are configured
+  file:
+    path: "{{ item.path }}"
+    owner: root
+    group: root
+    mode: og-rwx
+  with_items: "{{ cron_directories.files }}"
+
+...

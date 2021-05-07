@@ -1,0 +1,268 @@
+---
+
+# CIS 5.2.2
+# STIG 040390
+- name: Ensure SSH protocol is 2
+  lineinfile:
+    state: present
+    dest: /etc/ssh/sshd_config
+    regexp: "^#Protocol|^Protocol"
+    line: "Protocol 2"
+    validate: /usr/sbin/sshd -t -f %s
+
+# CIS 5.2.3
+- name: Ensure SSH loglevel is set
+  lineinfile:
+    state: present
+    dest: /etc/ssh/sshd_config
+    regexp: "^#LogLevel|^LogLevel"
+    line: 'LogLevel INFO'
+    validate: /usr/sbin/sshd -t -f %s
+
+# CIS 5.2.4
+# STIG 040710
+- name: Ensure SSH X11Forwarding is disabled
+  lineinfile:
+    state: present
+    dest: /etc/ssh/sshd_config
+    regexp: "^#X11Forwarding|^X11Forwarding"
+    line: 'X11Forwarding no'
+    validate: /usr/sbin/sshd -t -f %s
+
+# CIS 5.2.5
+- name: "Ensure SSH MaxAuthTries is set to 4 or less"
+  lineinfile:
+    state: present
+    dest: /etc/ssh/sshd_config
+    regexp: '^(#)?MaxAuthTries \d'
+    line: 'MaxAuthTries 4'
+    validate: /usr/sbin/sshd -t -f %s
+
+# STIG 040380
+- name: Ensure The SSH daemon must not allow authentication using known hosts authentication
+  lineinfile:
+    state: present
+    dest: /etc/ssh/sshd_config
+    regexp: "(?i)^#?IgnoreUserKnownHosts"
+    line: "IgnoreUserKnownHosts yes"
+    validate: /usr/sbin/sshd -t -f %s
+
+# CIS 5.2.6
+# STIG 040330
+# STIG 040350
+- name: "Ensure SSH IgnoreRhosts is enabled"
+  lineinfile:
+    state: present
+    dest: /etc/ssh/sshd_config
+    regexp: "^#IgnoreRhosts|^IgnoreRhosts"
+    line: 'IgnoreRhosts yes'
+    validate: /usr/sbin/sshd -t -f %s
+
+# CIS 5.2.7
+# STIG 010470
+- name: Disable Host-Based Authentication
+  lineinfile:
+    state: present
+    dest: /etc/ssh/sshd_config
+    regexp: "^#HostbasedAuthentication|^HostbasedAuthentication"
+    line: 'HostbasedAuthentication no'
+    validate: /usr/sbin/sshd -t -f %s
+
+# CIS 5.2.8
+# STIG 040370
+- name: Disable SSH Password Root Login
+  lineinfile:
+    state: present
+    dest: /etc/ssh/sshd_config
+    regexp: "^#PermitRootLogin|^PermitRootLogin"
+    line: "PermitRootLogin {{ ssh_root_login }}"
+    validate: /usr/sbin/sshd -t -f %s
+
+# CIS 5.2.9
+# STIG 040460
+- name: Ensure SSH UsePrivilegeSeparation is enabled
+  lineinfile:
+    state: present
+    dest: /etc/ssh/sshd_config
+    regexp: "^#UsePrivilegeSeparation|^UsePrivilegeSeparation"
+    line: "UsePrivilegeSeparation sandbox"
+    validate: /usr/sbin/sshd -t -f %s
+
+# CIS 5.2.10
+# STIG 010460
+- name: Ensure SSH PermitUserEnvironment is disabled
+  lineinfile:
+    state: present
+    dest: /etc/ssh/sshd_config
+    regexp: "^#PermitUserEnvironment|^PermitUserEnvironment"
+    line: "PermitUserEnvironment no"
+    validate: /usr/sbin/sshd -t -f %s
+
+# CIS 5.2.11
+- name: Ensure only strong Ciphers are used
+  lineinfile:
+    state: present
+    dest: /etc/ssh/sshd_config
+    regexp: "^#Ciphers|^Ciphers"
+    line: "Ciphers {{ ssh_ciphers }}"
+    validate: /usr/sbin/sshd -t -f %s
+
+# CIS 5.2.12
+# STIG 040400
+- name: Ensure only strong MAC algorithms are used
+  lineinfile:
+    state: present
+    dest: /etc/ssh/sshd_config
+    regexp: "^#Ciphers|^MACs"
+    line: "MACs {{ ssh_MACs }}"
+    validate: /usr/sbin/sshd -t -f %s
+
+# CIS 5.2.13
+# STIG 040320
+- name: Ensure SSH Idle Timeout Interval is configured | clientalive
+  lineinfile:
+    state: present
+    dest: /etc/ssh/sshd_config
+    regexp: "^#ClientAliveInterval|^ClientAliveInterval"
+    line: "ClientAliveInterval 299"
+    validate: /usr/sbin/sshd -t -f %s
+
+# CIS 5.2.13
+# STIG 040340
+- name: Ensure SSH Idle Timeout Interval is configured | MaxAlive
+  lineinfile:
+    state: present
+    dest: /etc/ssh/sshd_config
+    regexp: "^#ClientAliveCountMax|^ClientAliveCountMax"
+    line: "ClientAliveCountMax 3"
+    validate: /usr/sbin/sshd -t -f %s
+
+# CIS 5.2.16
+- name: Ensure SSH warning banner is configured
+  lineinfile:
+    state: present
+    dest: /etc/ssh/sshd_config
+    regexp: "^#Banner|^Banner"
+    line: "Banner /etc/issue"
+    validate: /usr/sbin/sshd -t -f %s
+
+# CIS 1.7.1.2
+# CIS 1.7.1.3
+# CIS 1.7.1.5
+# CIS 1.7.1.6
+# STIG 010030
+# STIG 010040
+# STIG 010050
+# STIG 040170
+- name: Setup ssh banner
+  template:
+    src: issue.j2
+    dest: "{{ item }}"
+    group: 'root'
+    mode: '0600'
+    owner: 'root'
+  with_items:
+    - /etc/issue
+    - /etc/issue.net
+
+# STIG 040470
+- name: Ensure SSH Compression is delayes
+  lineinfile:
+    state: present
+    dest: /etc/ssh/sshd_config
+    regexp: "^#Compression|^Compression"
+    line: "Compression delayed"
+    validate: /usr/sbin/sshd -t -f %s
+
+# STIG 040360
+- name: Ensure SSH PrintLastLog is enabled
+  lineinfile:
+    state: present
+    dest: /etc/ssh/sshd_config
+    regexp: "^#PrintLastLog|^PrintLastLog"
+    line: "PrintLastLog yes"
+    validate: /usr/sbin/sshd -t -f %s
+
+# STIG 040450
+- name: Ensure SSH StrictMode is enabled
+  lineinfile:
+    state: present
+    dest: /etc/ssh/sshd_config
+    regexp: "^#StrictModes|^StrictModes"
+    line: "StrictModes yes"
+    validate: /usr/sbin/sshd -t -f %s
+
+# STIG 040430
+- name: Ensure SSH GSSAPIAuthentication is disabled
+  lineinfile:
+    state: present
+    dest: /etc/ssh/sshd_config
+    regexp: "^#GSSAPIAuthentication|^GSSAPIAuthentication"
+    line: "GSSAPIAuthentication no"
+    validate: /usr/sbin/sshd -t -f %s
+
+# STIG 010300
+- name: Ensure SSH PermitEmptyPasswords is disabled
+  lineinfile:
+    state: present
+    dest: /etc/ssh/sshd_config
+    regexp: "^#PermitEmptyPasswords|^PermitEmptyPasswords"
+    line: "PermitEmptyPasswords no"
+    validate: /usr/sbin/sshd -t -f %s
+
+- name: Exchange algorithms are used
+  lineinfile:
+    state: present
+    dest: /etc/ssh/sshd_config
+    regexp: "^#KexAlgorithms|^KexAlgorithms"
+    line: "KexAlgorithms {{ ssh_key_algorithms }}"
+    validate: /usr/sbin/sshd -t -f %s
+
+- name: Ensure SSH LoginGraceTime is set to one minute or less
+  lineinfile:
+    state: present
+    dest: /etc/ssh/sshd_config
+    regexp: "^#LoginGraceTime|^LoginGraceTime"
+    line: "LoginGraceTime 60"
+    validate: /usr/sbin/sshd -t -f %s
+
+- name: Ensure SSH PAM is enabled
+  lineinfile:
+    state: present
+    dest: /etc/ssh/sshd_config
+    regexp: "^#UsePAM|^UsePAM"
+    line: "UsePAM yes"
+    validate: /usr/sbin/sshd -t -f %s
+
+- name: Ensure SSH AllowTcpForwarding is disabled
+  lineinfile:
+    state: present
+    dest: /etc/ssh/sshd_config
+    regexp: "^#AllowTcpForwarding|^AllowTcpForwarding"
+    line: "AllowTcpForwarding no"
+    validate: /usr/sbin/sshd -t -f %s
+
+- name: "Ensure SSH MaxStartups is configured to {{ ssh_max_startups }}"
+  lineinfile:
+    state: present
+    dest: /etc/ssh/sshd_config
+    regexp: "^$MaxStartups|^MaxStartups"
+    line: "MaxStartups {{ ssh_max_startups }}"
+    validate: /usr/sbin/sshd -t -f %s
+
+- name: "Ensure SSH MaxSessions is limited to {{ ssh_max_sessions }}"
+  lineinfile:
+    state: present
+    dest: /etc/ssh/sshd_config
+    regexp: "^#MaxSessions|^MaxSessions"
+    line: "MaxSessions {{ ssh_max_sessions }}"
+    validate: /usr/sbin/sshd -t -f %s
+
+- name: Reload ssh
+  service:
+    name: sshd
+    enabled: yes
+    state: restarted
+  changed_when: no
+
+...
