@@ -11,16 +11,16 @@
   desc: Unknown Program runs inside container from suspicious folder
   condition: >
     spawned_process and container and
-    (proc.cmdline contains "/tmp" or
-    proc.cmdline contains "/dev/shm" or
-    proc.cmdline contains "/var/tmp" or
-    proc.cmdline contains "/var/run" or
-    proc.cmdline contains "/run" or
-    proc.cwd contains "/tmp" or
-    proc.cwd contains "/dev/shm" or
-    proc.cwd contains "/var/tmp" or
-    proc.cwd contains "/var/run" or
-    proc.cwd contains "/run") and
+    (proc.exepath contains "/tmp" or
+      proc.exepath contains "/dev/shm" or
+      proc.exepath contains "/var/tmp" or
+      proc.exepath contains "/var/run" or
+      proc.exepath contains "/run" or
+      proc.cwd contains "/tmp" or
+      proc.cwd contains "/dev/shm" or
+      proc.cwd contains "/var/tmp" or
+      proc.cwd contains "/var/run" or
+      proc.cwd contains "/run") and
     (proc.args contains "-e" or
       proc.args contains "-c" or
       proc.args contains "--sh-exec" or
