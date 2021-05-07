@@ -25,8 +25,7 @@
       proc.args contains "-c" or
       proc.args contains "--sh-exec" or
       proc.args contains "--exec" or
-      proc.args contains "-c " or
-      proc.args contains "--lua-exec"))
+      proc.args contains "--lua-exec")
   output: >
     Execution of binary from a tmpfs folder (user=%user.name user_loginuid=%user.loginuid
     command=%proc.cmdline container_id=%container.id container_name=%container.name image=%container.image.repository:%container.image.tag)
