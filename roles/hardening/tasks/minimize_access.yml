@@ -43,13 +43,26 @@
     name: ctrl-alt-del.target
     masked: yes
 
-- name: Ensure sudo log file exists
+- name: "Ensure sudo is installed"
+  package:
+    name: sudo
+    state: present
+
+- name: "Ensure sudo commands use pty"
   lineinfile:
     dest: /etc/sudoers
+    regexp: '^Defaults    use_pty'
+    line: 'Defaults    use_pty'
     state: present
-    regexp: "^Defaults logfile.*"
-    line: 'Defaults logfile="/var/log/sudo.log"'
-    validate: "visudo -cf %s"
+    validate: '/usr/sbin/visudo -cf %s'
+
+- name: "Ensure sudo log file exists"
+  lineinfile:
+    dest: /etc/sudoers
+    regexp: '^Defaults    logfile="{{ rhel7cis_varlog_location }}"'
+    line: 'Defaults    logfile="{{ rhel7cis_varlog_location }}"'
+    state: present
+    validate: '/usr/sbin/visudo -cf %s'
 
 # CIS 5.4.1.1
 # CIS 5.4.1.2
@@ -289,6 +302,9 @@
     mode: '0444'
 
 # CIS 5.3.1
+# CIS 5.3.2
+# CIS 5.3.3
+# CIS 5.3.4
 # STIG 010120
 # STIG 010130
 # STIG 010140

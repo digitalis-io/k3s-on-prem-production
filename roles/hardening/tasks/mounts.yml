@@ -23,6 +23,7 @@
     state: started
 
 # CIS 1.1.7
+# CIS 1.1.11
 - name: "Ensure separate partition exists for /var/tmp"
   mount:
     name: /var/tmp

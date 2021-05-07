@@ -84,6 +84,7 @@ unwanted_pkg:
   - rsh-server
   - setroubleshoot
   - telnet-server
+  - talk
   - tftp
   - tftp-server
   - xinetd
