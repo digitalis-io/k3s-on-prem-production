@@ -44,3 +44,17 @@
     command=%proc.cmdline file=%fd.name parent=%proc.pname gparent=%proc.aname[2] ggparent=%proc.aname[3] gggparent=%proc.aname[4] container_id=%container.id image=%container.image.repository)
   priority: WARNING
   tags: [filesystem, mitre_credential_access, mitre_discovery]
+
+- rule: Service account files accessed inside container
+  desc: >
+    an attempt to read any sensitive file inside /var/run/secrets/kubernetes.io/serviceaccount
+  condition: >
+    container and
+      (open_read or open_write) and
+      proc.args contains "/var/run/secrets/kubernetes.io/serviceaccount" and
+      proc_name_exists
+  output: >
+    Service accout files accessed inside container (user=%user.name user_loginuid=%user.loginuid program=%proc.name
+    command=%proc.cmdline file=%fd.name parent=%proc.pname gparent=%proc.aname[2] ggparent=%proc.aname[3] gggparent=%proc.aname[4] container_id=%container.id image=%container.image.repository)
+  priority: WARNING
+  tags: [filesystem, mitre_credential_access, mitre_discovery]
