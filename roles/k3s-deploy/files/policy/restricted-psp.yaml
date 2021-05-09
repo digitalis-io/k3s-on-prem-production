@@ -49,6 +49,11 @@ rules:
     verbs: ['use']
     resourceNames:
       - global-restricted-psp
+  - apiGroups: ['extensions']
+    resources: ['podsecuritypolicies']
+    verbs: ['use']
+    resourceNames:
+      - global-restricted-psp
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
