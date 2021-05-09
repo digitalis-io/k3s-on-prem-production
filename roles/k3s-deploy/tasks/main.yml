@@ -124,16 +124,4 @@
   when:
     - falco_security_enabled
 
-
-# CIS - 5.1.5 - 5.1.6
-- name: Security - Ensure that default service accounts are not actively used
-  command: |
-    {{ kubectl_cmd }} patch serviceaccount default -n {{ item }} -p 'automountServiceAccountToken: false'
-  register: kubectl
-  changed_when: "'no change' not in kubectl.stdout"
-  failed_when: "'no change' not in kubectl.stderr and kubectl.rc != 0"
-  run_once: yes
-  with_items: "{{ namespaces.stdout_lines }}"
-  when: "'kube_master' in group_names"
-
 ...
