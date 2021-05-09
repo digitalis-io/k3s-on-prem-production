@@ -4,6 +4,7 @@ metadata:
   name: dashboard-ingress
   namespace: kubernetes-dashboard
   annotations:
+    kubernetes.io/ingress.class: "internal-ingress-nginx"
     nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
 spec:
   rules:
