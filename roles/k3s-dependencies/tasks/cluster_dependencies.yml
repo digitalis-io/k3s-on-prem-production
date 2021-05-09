@@ -124,6 +124,17 @@
             - 443/tcp
             - 6443/tcp
 
+        - name: Close external ports
+          firewalld:
+            state: disabled
+            immediate: yes
+            permanent: yes
+            service: '{{ item }}'
+            zone: public
+          with_items:
+            - ssh
+            - cockpit
+
       when: external_interface != internal_interface
 
     - name: Add firewalld masquerading
