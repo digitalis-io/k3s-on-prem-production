@@ -30,11 +30,9 @@
 # CIS 1.4.3
 # STIG 010481
 - name: Require single user mode password
-  lineinfile:
-    create: yes
-    dest: /usr/lib/systemd/system/rescue.service
-    regexp: ^#?ExecStart=
-    line: ExecStart=-/bin/sh -c "/sbin/sulogin; /usr/bin/systemctl --fail --no-block default"
+  template:
+    src: rescue.service.j2
+    dest: /etc/systemd/system/rescue.service
     owner: 'root'
     group: 'root'
     mode: '0400'

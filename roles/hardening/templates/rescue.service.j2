@@ -1,0 +1,20 @@
+[Unit]
+Description=Rescue Shell
+Documentation=man:sulogin(8)
+DefaultDependencies=no
+Conflicts=shutdown.target
+After=sysinit.target plymouth-start.service
+Before=shutdown.target
+
+[Service]
+Environment=HOME=/root
+WorkingDirectory=-/root
+ExecStartPre=-/bin/plymouth --wait quit
+ExecStart=-/bin/sh -c "/sbin/sulogin; /usr/bin/systemctl --fail --no-block default"
+Type=idle
+StandardInput=tty-force
+StandardOutput=inherit
+StandardError=inherit
+KillMode=process
+IgnoreSIGPIPE=no
+SendSIGHUP=yes
