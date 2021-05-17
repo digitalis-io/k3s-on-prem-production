@@ -53,8 +53,6 @@ falco_sidekick_kubeless_priority: "notice"
 # falco_sidekick_teams_priority
 #####
 
-openpolicy_enabled: yes
-
 keepalived_interface: eth0
 keepalived_addr_cidr: 192.168.122.100/24
 keepalived_ip: 192.168.122.100
