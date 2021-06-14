@@ -1,6 +1,8 @@
 # K3s Lightweight Kubernetes made ready for production
 
-This repo contains the playbook needed to set up an on-premises K3s cluster and securize it
+This repo contains the playbook needed to set up an on-premises K3s cluster and securize it.
+
+The accompanying blog for this project is found here: https://digitalis.io/blog/kubernetes/k3s-lightweight-kubernetes-made-ready-for-production-part-1/
 
 ## Included roles
 
