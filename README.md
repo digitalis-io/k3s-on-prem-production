@@ -136,6 +136,11 @@ falco_sidekick_teams: "..."
 falco_sidekick_teams_priority: "..."
 ```
 
+# Usage
+
+The playbook and inventory are ready to use, just start from the example inventory `./inventory-k3s.yml` and fill your secrets
+and infrastructure IPs (metallb ranges, host IPs, interface naming etc...)
+
 # Final Result
 
 This is the cluster layout at the end of the provisioning. Bear in mind that this is customizable in both versions and components
