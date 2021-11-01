@@ -26,6 +26,8 @@
     mode: '0600'
 
 - name: Collect privileged binaries
+  args:
+    executable: /bin/bash
   shell: |
     set -o pipefail
     for i in  $(df | grep '^/dev' | awk '{ print $NF }'); do
