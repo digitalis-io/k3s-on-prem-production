@@ -1,0 +1,11 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kubevip
+  namespace: kube-system
+data:
+  range-global: {{ kubevip_external_ip_range }}
+{% if kubevip_internal_ip_range is defined and kubevip_internal_ip_range | length > 0 %}
+  range-internal: {{ kubevip_internal_ip_range }}
+{% endif %}

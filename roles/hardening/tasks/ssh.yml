@@ -78,15 +78,8 @@
     line: "PermitRootLogin {{ ssh_root_login }}"
     validate: /usr/sbin/sshd -t -f %s
 
-# CIS 5.2.9
-# STIG 040460
-- name: Ensure SSH UsePrivilegeSeparation is enabled
-  lineinfile:
-    state: present
-    dest: /etc/ssh/sshd_config
-    regexp: "^#UsePrivilegeSeparation|^UsePrivilegeSeparation"
-    line: "UsePrivilegeSeparation sandbox"
-    validate: /usr/sbin/sshd -t -f %s
+# UsePrivilegeSeparation was removed in OpenSSH 7.8 (RHEL 9 ships 8.7+)
+# No task needed — the option is not valid and would cause sshd to fail.
 
 # CIS 5.2.10
 # STIG 010460
@@ -261,8 +254,8 @@
 - name: Reload ssh
   service:
     name: sshd
-    enabled: yes
+    enabled: true
     state: restarted
-  changed_when: no
+  changed_when: false
 
 ...

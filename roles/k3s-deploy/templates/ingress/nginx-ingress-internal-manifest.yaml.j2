@@ -6,76 +6,6 @@ metadata:
     app.kubernetes.io/name: ingress-nginx-internal
     app.kubernetes.io/instance: ingress-nginx-internal
 ---
-
-apiVersion: policy/v1beta1
-kind: PodSecurityPolicy
-metadata:
-  name: ingress-nginx-internal
-  namespace: ingress-nginx-internal
-  annotations:
-    seccomp.security.alpha.kubernetes.io/allowedProfileNames: 'docker/default,runtime/default'  # CIS - 5.7.2
-    seccomp.security.alpha.kubernetes.io/defaultProfileName: 'runtime/default'                  # CIS - 5.7.2
-spec:
-  allowedCapabilities:
-    - NET_BIND_SERVICE
-  privileged: false
-  allowPrivilegeEscalation: true
-  # Allow core volume types.
-  volumes:
-    - configMap
-    - secret
-  hostPID: false                   # CIS - 5.2.2
-  hostIPC: false                   # CIS - 5.2.3
-  hostNetwork: false               # CIS - 5.2.4
-  runAsUser:
-    rule: 'MustRunAsNonRoot'       # CIS - 5.2.6
-  seLinux:
-    rule: 'RunAsAny'
-  supplementalGroups:
-    rule: 'MustRunAs'
-    ranges:
-      - min: 1
-        max: 65535
-  fsGroup:
-    rule: 'MustRunAs'
-    ranges:
-      - min: 1
-        max: 65535
-  readOnlyRootFilesystem: false
----
-
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: ingress-nginx-internal-psp
-  namespace: ingress-nginx-internal
-rules:
-- apiGroups: [policy]
-  resources: [podsecuritypolicies]
-  verbs: [use]
-  resourceNames: [ingress-nginx-internal]
-
----
-
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: ingress-nginx-internal-psp
-  namespace: ingress-nginx-internal
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: ingress-nginx-internal-psp
-subjects:
-- kind: ServiceAccount
-  name: default
-- kind: ServiceAccount
-  name: ingress-nginx-internal
-  namespace: ingress-nginx-internal
-- kind: ServiceAccount
-  name: ingress-nginx-internal-admission
-  namespace: ingress-nginx-internal
----
 # Source: ingress-nginx-internal/templates/controller-serviceaccount.yaml
 apiVersion: v1
 kind: ServiceAccount
@@ -318,7 +248,7 @@ apiVersion: v1
 kind: Service
 metadata:
   annotations:
-    metallb.universe.tf/address-pool: metallb_internal_ip_range
+    kube-vip.io/loadbalancerIPs: ""
   labels:
     app.kubernetes.io/name: ingress-nginx-internal
     app.kubernetes.io/instance: ingress-nginx-internal
@@ -374,7 +304,7 @@ spec:
       dnsPolicy: ClusterFirst
       containers:
         - name: controller
-          image: k8s.gcr.io/ingress-nginx/controller:v{{ nginx_ingress_version }}@sha256:c4390c53f348c3bd4e60a5dd6a11c35799ae78c49388090140b9d72ccede1755
+          image: registry.k8s.io/ingress-nginx/controller:v{{ nginx_ingress_version }}
           imagePullPolicy: IfNotPresent
           lifecycle:
             preStop:
@@ -611,7 +541,7 @@ spec:
     spec:
       containers:
         - name: create
-          image: docker.io/jettech/kube-webhook-certgen:v1.5.1
+          image: registry.k8s.io/ingress-nginx/kube-webhook-certgen:v1.4.4
           imagePullPolicy: IfNotPresent
           args:
             - create
@@ -653,7 +583,7 @@ spec:
     spec:
       containers:
         - name: patch
-          image: docker.io/jettech/kube-webhook-certgen:v1.5.1
+          image: registry.k8s.io/ingress-nginx/kube-webhook-certgen:v1.4.4
           imagePullPolicy: IfNotPresent
           args:
             - patch

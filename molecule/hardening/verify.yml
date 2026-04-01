@@ -1,0 +1,32 @@
+---
+- name: Verify hardening
+  hosts: all
+  become: true
+  tasks:
+    - name: Check sshd_config exists
+      ansible.builtin.stat:
+        path: /etc/ssh/sshd_config
+      register: sshd_config
+
+    - name: Assert sshd_config exists
+      ansible.builtin.assert:
+        that: sshd_config.stat.exists
+
+    - name: Check auditd is enabled
+      ansible.builtin.command: systemctl is-enabled auditd
+      changed_when: false
+      register: auditd_enabled
+      failed_when: false
+
+    - name: Assert auditd is enabled
+      ansible.builtin.assert:
+        that: "'enabled' in auditd_enabled.stdout"
+
+    - name: Check SSH PermitRootLogin is disabled
+      ansible.builtin.command: grep -E "^PermitRootLogin" /etc/ssh/sshd_config
+      changed_when: false
+      register: root_login
+
+    - name: Assert PermitRootLogin is no
+      ansible.builtin.assert:
+        that: "'no' in root_login.stdout"

@@ -3,12 +3,12 @@
 - block:
 
     - name: Install Falco repo /rpm-key
-      rpm_key:
+      ansible.builtin.rpm_key:
         state: present
         key: https://falco.org/repo/falcosecurity-3672BA8F.asc
 
     - name: Install Falco repo /rpm-repo
-      get_url:
+      ansible.builtin.get_url:
         url: https://falco.org/repo/falcosecurity-rpm.repo
         dest: /etc/yum.repos.d/falcosecurity.repo
 
@@ -17,55 +17,56 @@
 - block:
 
     - name: Install Falco repo /apt-key
-      apt_key:
+      ansible.builtin.apt_key:
         url: https://falco.org/repo/falcosecurity-3672BA8F.asc
         state: present
 
     - name: Install Falco repo /apt-repo
-      blockinfile:
+      ansible.builtin.blockinfile:
         path: /etc/apt/sources.list.d/falcosecurity.list
-        mode: 0644
+        mode: '0644'
         block: |
           deb https://download.falco.org/packages/deb stable main
-        create: yes
+        create: true
 
     - name: Apt update
-      apt:
-        update_cache: yes
+      ansible.builtin.apt:
+        update_cache: true
 
   when: ansible_os_family == 'Debian'
 
 - name: Install falco on control plane
-  package:
+  ansible.builtin.package:
     state: present
     name: falco
 
 - name: Check if driver is loaded
-  shell: |
+  ansible.builtin.shell: |
     set -o pipefail
     lsmod | grep falco
-  changed_when: no
-  failed_when: no
+  changed_when: false
+  failed_when: false
   register: falco_module
 
 - name: Security - configure falco to use sidekick
-  template:
+  ansible.builtin.template:
     src: falco/falco.yaml.j2
     dest: /etc/falco/falco.yaml
-    mode: 0400
+    mode: '0400'
     owner: root
     group: root
 
 - name: Load Falco module
-  command: |
+  ansible.builtin.command: |
     falco-driver-loader
+  changed_when: true
   when: falco_module.stdout_lines | length == 0
 
 - name: Falco Sidekick
   block:
 
     - name: Security - Deploy falco sidekick /ingress-manifest
-      template:
+      ansible.builtin.template:
         src: "falco/{{ item }}.j2"
         dest: "/var/lib/rancher/k3s/server/custom-manifests/{{ item }}"
         owner: 'root'
@@ -78,7 +79,7 @@
         - "'kube_master' in group_names"
 
     - name: Security - Deploy falco sidekick /ingress
-      command: "{{ item }}"
+      ansible.builtin.command: "{{ item }}"
       register: kubectl
       changed_when: "'created' in kubectl.stdout or 'configured' in kubectl.stdout"
       failed_when: "'AlreadyExists' not in kubectl.stderr and kubectl.rc != 0"
@@ -86,49 +87,27 @@
         - "{{ kubectl_cmd }} create ns falco"
         - "{{ kubectl_cmd }} apply -f /var/lib/rancher/k3s/server/custom-manifests/falcosidekick-manifest.yaml"
         - "{{ kubectl_cmd }} apply -f /var/lib/rancher/k3s/server/custom-manifests/falcosidekick-ingress-manifest.yaml"
-      run_once: yes
-
-    - name: Security - kubeless function for sidekick
-      block:
-
-        - name: Deploy Kubeless pod-delete function manifest
-          template:
-            src: 'kubeless/falco_function.yaml.j2'
-            dest: '/var/lib/rancher/k3s/server/custom-manifests/falco-function-manifest.yaml'
-            owner: 'root'
-            group: 'root'
-            mode: '0600'
-
-        - name: Deploy Kubeless pod-delete function
-          command: |
-            {{ kubectl_cmd }} apply -n kubeless \
-             -f /var/lib/rancher/k3s/server/custom-manifests/falco-function-manifest.yaml
-          register: kubectl
-          changed_when: "'created' in kubectl.stdout or 'configured' in kubectl.stdout"
-          failed_when: "'AlreadyExists' not in kubectl.stderr and kubectl.rc != 0"
-          run_once: yes
-
-      when:
-        - kubeless_enabled
+      run_once: true
 
   when: "'kube_master' in group_names"
 
-- name: Security - Fetch admin api token
-  shell: |
-    set -o pipefail
-    {{ kubectl_cmd }} -n kube-system describe secret admin-user-token| grep '^token:' | awk '{print $2}'
-  changed_when: no
+# K8s 1.24+: ServiceAccount tokens are no longer auto-created.
+# Use kubectl create token for a long-lived token instead.
+- name: Security - Create admin-user long-lived token (K8s 1.24+)
+  ansible.builtin.command: |
+    {{ kubectl_cmd }} create token admin-user -n kube-system --duration=8760h
+  changed_when: false
   register: api_token
   when:
     - "'kube_master' in group_names"
 
 - name: Store api token
-  set_fact:
-    falco_token: "{{ hostvars[groups['kube_master'][0]]['api_token'].stdout_lines[0] }}"
+  ansible.builtin.set_fact:
+    falco_token: "{{ hostvars[groups['kube_master'][0]]['api_token'].stdout }}"
 
 - name: Save api token to file
-  lineinfile:
-    create: yes
+  ansible.builtin.lineinfile:
+    create: true
     dest: /etc/falco/token
     group: 'root'
     line: "{{ falco_token }}"
@@ -137,13 +116,13 @@
     state: present
 
 - name: Fix falco folder permission
-  file:
+  ansible.builtin.file:
     path: /etc/falco
     mode: "go="
-    recurse: yes
+    recurse: true
 
 - name: Security - Deploy falco service
-  template:
+  ansible.builtin.template:
     src: falco/falco.service.j2
     dest: /usr/lib/systemd/system/falco.service
     owner: 'root'
@@ -152,7 +131,7 @@
   register: falco_service
 
 - name: Deploy custom rules
-  template:
+  ansible.builtin.template:
     src: "falco/{{ item }}.j2"
     dest: "/etc/falco/rules.d/{{ item }}"
     owner: 'root'
@@ -164,20 +143,20 @@
   register: falco_rules
 
 - name: Stop Falco Service
-  systemd:
+  ansible.builtin.systemd:
     name: falco
-    daemon_reload: yes
-    enabled: yes
+    daemon_reload: true
+    enabled: true
     state: stopped
   when: >
     falco_service.changed or
     falco_rules.changed
 
 - name: Enable Falco Service
-  systemd:
+  ansible.builtin.systemd:
     name: falco
-    daemon_reload: yes
-    enabled: yes
+    daemon_reload: true
+    enabled: true
     state: started
 
 ...

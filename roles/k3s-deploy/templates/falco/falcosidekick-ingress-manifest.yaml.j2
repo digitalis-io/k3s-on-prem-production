@@ -8,7 +8,7 @@ metadata:
     nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
 spec:
   rules:
-{% if metallb_internal_ip_range is defined %}
+{% if kubevip_internal_ip_range is defined %}
   - host: falcosidekick.{{ internal_ingress_hostname }}
 {% else %}
   - host: falcosidekick.{{ ingress_hostname }}

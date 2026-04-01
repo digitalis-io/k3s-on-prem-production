@@ -7,7 +7,6 @@ service_cidr: 10.44.0.0/16
 k3s_dependencies:
   - conntrack-tools
   - curl
-  - ebtables
   - epel-release
   - ethtool
   - gawk
@@ -15,12 +14,29 @@ k3s_dependencies:
   - ipvsadm
   - iscsi-initiator-utils
   - libseccomp
+  - nftables
   - socat
   - util-linux
+  - wireguard-tools
+  # ebtables is provided by ebtables-legacy on RHEL 9 or replaced by nftables
+  # Use nftables-based filtering; ebtables-legacy is available if needed
 
-external_interface: eth0
-internal_interface: eth0
+external_interface: "{{ ansible_default_ipv4.interface | default('eth0') }}"
+internal_interface: "{{ ansible_default_ipv4.interface | default('eth0') }}"
 
-k3s_selinux_rpm: "https://github.com/k3s-io/k3s-selinux/releases/download/v0.3.stable.0/k3s-selinux-0.3-0.el8.noarch.rpm"
+k3s_selinux_rpm: "https://github.com/k3s-io/k3s-selinux/releases/download/v1.6.stable.1/k3s-selinux-1.6-1.el9.noarch.rpm"
+
+kubectl_version: "v1.31.0"
+stern_version: "1.30.0"
+k9s_version: "v0.32.5"
+
+arch_mapping:
+  x86_64: amd64
+  aarch64: arm64
+  armv7l: armhf
+  i386: i386
+  ppc64le: ppc64le
+
+arch: "{{ arch_mapping[ansible_facts['architecture']] | default('amd64') }}"
 
 ...

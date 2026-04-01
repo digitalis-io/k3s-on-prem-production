@@ -2,8 +2,8 @@
 
 - name: Update and upgrade apt packages
   apt:
-    upgrade: yes
-    update_cache: yes
+    upgrade: true
+    update_cache: true
   when: ansible_os_family == "Debian"
 
 # STIG 030000
@@ -33,8 +33,8 @@
     for i in  $(df | grep '^/dev' | awk '{ print $NF }'); do
       find $i -xdev -type f -perm -4000 -o -type f -perm -2000 2>/dev/null;
     done
-  changed_when: no
-  check_mode: no
+  changed_when: false
+  check_mode: false
   register: privileged_bins
 
 
@@ -93,23 +93,21 @@
     dest: /etc/audit/rules.d/99_seal.rules
     line: "-e 2"
     state: present
-    create: yes
+    create: true
     owner: 'root'
     group: 'root'
     mode: '0600'
 
-- name: Reload auditd service
+- name: Reload auditd service  # noqa command-instead-of-module
   command: /sbin/service auditd restart
-  changed_when: no
-  check_mode: no
-  failed_when: no
-  args:
-    warn: no
+  changed_when: false
+  check_mode: false
+  failed_when: false
 
 # CIS 4.1.2
 # STIG 030000
 - name: Enable service auditd
   service:
     name: auditd
-    enabled: 'yes'
+    enabled: true
     state: started

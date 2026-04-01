@@ -1,18 +1,18 @@
 ---
-# file" cluster_server.yml
-#
+# file: cluster_server.yml
+
 - name: Deploy k3s master service
-  template:
+  ansible.builtin.template:
     src: k3s-server.service.j2
     dest: /etc/systemd/system/k3s-server.service
-    mode: 0400
+    mode: '0400'
     owner: root
     group: root
   register: service_deploy
 
 - block:
     - name: Create directory for rancher
-      file:
+      ansible.builtin.file:
         path: "/etc/rancher/k3s"
         state: directory
         mode: '0700'
@@ -20,10 +20,10 @@
         group: root
 
     - name: Deploy k3s custom registry
-      template:
+      ansible.builtin.template:
         src: registries.yaml.j2
         dest: /etc/rancher/k3s/registries.yaml
-        mode: 0600
+        mode: '0600'
         owner: root
         group: root
   when: docker_registry is defined
@@ -31,18 +31,18 @@
 - block:
 
     - name: Create audit folder
-      file:
+      ansible.builtin.file:
         path: /var/lib/rancher/audit
         state: directory
-        mode: 0700
+        mode: '0700'
         owner: root
         group: root
 
     - name: Deploy Falco's audit policy and webhook
-      copy:
+      ansible.builtin.copy:
         src: "falco/{{ item }}.j2"
         dest: "/var/lib/rancher/audit/{{ item }}"
-        mode: 0400
+        mode: '0400'
         owner: root
         group: root
       with_items:
@@ -52,52 +52,52 @@
   when: falco_security_enabled
 
 - name: Stop K3s service
-  systemd:
+  ansible.builtin.systemd:
     name: k3s-server
     state: stopped
-  failed_when: no
+  failed_when: false
   when: service_deploy.changed or (k3s_binary is defined and k3s_binary.changed)
 
 - name: Enable and check K3s service
-  systemd:
+  ansible.builtin.systemd:
     name: k3s-server
-    daemon_reload: yes
-    enabled: yes
+    daemon_reload: true
+    enabled: true
     state: started
   when: service_deploy.changed or (k3s_binary is defined and k3s_binary.changed)
 
 - name: Wait for cluster to come up
-  shell: |
+  ansible.builtin.shell: |
     set -o pipefail
     {{ kubectl_cmd }} get nodes | grep "master" | awk '{print $2}' | grep ^Ready
   register: masters
   until:
     - masters.rc == 0
-    - (masters.stdout_lines | length ) == (groups['kube_master'] | length)
+    - (masters.stdout_lines | length) == (groups['kube_master'] | length)
   retries: 30
   delay: 5
-  run_once: yes
-  changed_when: no
+  run_once: true
+  changed_when: false
 
 - name: Save kube config as artifact
-  fetch:
+  ansible.builtin.fetch:
     src: /etc/rancher/k3s/k3s.yaml
     dest: artifacts/k3s-kube-config
-    flat: yes
-  run_once: yes
-  changed_when: no
+    flat: true
+  run_once: true
+  changed_when: false
 
 - name: Fix local k3s config
-  replace:
+  ansible.builtin.replace:
     path: artifacts/k3s-kube-config
     regexp: 'https://0.0.0.0:6443'
-    replace: 'https://{{ keepalived_ip }}:6443'
-  become: no
-  changed_when: no
+    replace: 'https://{{ kubevip_vip_address if (kubevip_vip_address | default("") | length > 0) else hostvars[groups["kube_master"][0]]["ansible_host"] }}:6443'
+  become: false
+  changed_when: false
   delegate_to: localhost
-  run_once: yes
+  run_once: true
 
 - name: Wait for masters to align
-  pause:
+  ansible.builtin.pause:
     seconds: 5
 ...

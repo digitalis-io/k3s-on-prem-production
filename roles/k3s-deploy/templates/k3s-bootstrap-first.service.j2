@@ -15,7 +15,10 @@ Wants=network-online.target
 ###########
 [Service]
 ExecStart={{ k3s_binary_path }}/k3s server --cluster-init \
-    --kube-apiserver-arg='enable-admission-plugins=AlwaysPullImages,DefaultStorageClass,DefaultTolerationSeconds,LimitRanger,MutatingAdmissionWebhook,NamespaceLifecycle,NodeRestriction,PersistentVolumeClaimResize,PodSecurityPolicy,Priority,ResourceQuota,ServiceAccount,TaintNodesByCondition,ValidatingAdmissionWebhook' \
+    --kube-apiserver-arg='enable-admission-plugins=AlwaysPullImages,DefaultStorageClass,DefaultTolerationSeconds,LimitRanger,MutatingAdmissionWebhook,NamespaceLifecycle,NodeRestriction,PersistentVolumeClaimResize,Priority,ResourceQuota,ServiceAccount,TaintNodesByCondition,ValidatingAdmissionWebhook' \
+{% if psa_admission_enabled | default(false) %}
+    --kube-apiserver-arg='admission-control-config-file=/etc/k3s-admission.yaml' \
+{% endif %}
     --kube-apiserver-arg='encryption-provider-config=/etc/k3s-encryption.yaml' \
     --kube-apiserver-arg='request-timeout=300s' \
     --kube-apiserver-arg='service-account-lookup=true' \
@@ -33,8 +36,10 @@ ExecStart={{ k3s_binary_path }}/k3s server --cluster-init \
     --kubelet-arg=tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_RSA_WITH_AES_128_GCM_SHA256,TLS_RSA_WITH_AES_256_GCM_SHA384 \
     --protect-kernel-defaults=true \
     --write-kubeconfig-mode 0600 \
+{% if nginx_ingress_enabled %}
     --disable traefik \
-{% if metallb_enabled %}
+{% endif %}
+{% if kubevip_enabled %}
     --disable servicelb \
 {% endif %}
 {% if groups['kube_node'] is defined and groups['kube_node'] | length > 0%}
@@ -48,7 +53,8 @@ ExecStart={{ k3s_binary_path }}/k3s server --cluster-init \
     --node-ip {{ ansible_host }} \
     --cluster-cidr={{ cluster_cidr }} \
     --service-cidr={{ service_cidr }} \
-    --tls-san {{ cluster_external_ip }}
+    --tls-san {{ cluster_external_ip }}{% if kubevip_vip_address | default('') | length > 0 %} \
+    --tls-san {{ kubevip_vip_address }}{% endif %}
 Environment="K3S_TOKEN={{ k3s_cluster_secret }}"
 Delegate=yes
 KillMode=process

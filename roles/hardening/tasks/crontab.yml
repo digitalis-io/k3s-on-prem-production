@@ -12,7 +12,7 @@
 - name: "Ensure cron daemon is enabled"
   service:
     name: crond
-    enabled: yes
+    enabled: true
 
 # CIS 1.4.2
 - name: Configure Periodic Execution of AIDE

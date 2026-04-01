@@ -43,7 +43,7 @@ json_output: true
 json_include_output_property: true
 http_output:
   enabled: true
-{% if metallb_internal_ip_range is defined %}
+{% if kubevip_internal_ip_range is defined %}
   url: "http://falcosidekick.{{ hostvars[groups['kube_master'][0]]['internal_ingress_hostname'] }}/"
 {% else %}
   url: "http://falcosidekick.{{ hostvars[groups['kube_master'][0]]['ingress_hostname'] }}/"

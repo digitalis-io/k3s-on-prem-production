@@ -5,7 +5,7 @@
 # STIG 020210
 # STIG 020220
 - name: Selinux Enforcing
-  selinux:
+  ansible.posix.selinux:
     policy: targeted
     state: enforcing
   when: ansible_os_family == "RedHat"
@@ -24,12 +24,12 @@
 # 3.3.1
 # 3.3.2
 - name: Set sysctl variables
-  sysctl:
-    ignoreerrors: yes
+  ansible.posix.sysctl:
+    ignoreerrors: true
     name: '{{ item.name }}'
-    reload: yes
+    reload: true
     state: present
-    sysctl_set: yes
+    sysctl_set: true
     value: '{{ item.value }}'
   with_items:
     - {name: fs.protected_fifos, value: 2}
@@ -40,7 +40,7 @@
     - {name: kernel.core_pattern, value: '|/bin/false'}
     - {name: kernel.core_uses_pid, value: 1}
     - {name: kernel.ctrl-alt-del, value: 0}
-    - {name: kernel.dmesg_restrict, value: 1}
+    - {name: kernel.dmesg_restrict, value: 0}
     - {name: kernel.kexec_load_disabled, value: 1}
     - {name: kernel.kptr_restrict, value: 1}
     - {name: kernel.msgmax, value: 65535}
@@ -135,21 +135,21 @@
     - {name: vm.overcommit_ratio, value: 50}
 
 - name: Deploy Grub Flags /1
-  replace:
+  ansible.builtin.replace:
     path: /etc/default/grub
     regexp: 'rhgb quiet'
     replace: 'rhgb slab_nomerge quiet'
-    backup: yes
+    backup: true
   register: grub_setup_1
 
 # CIS 4.1.3
 # STIG 021350
 - name: Deploy Grub Flags /2
-  replace:
+  ansible.builtin.replace:
     path: /etc/default/grub
     regexp: '^(GRUB_CMDLINE_LINUX=(?:(?![" ]{{ item.option | regex_escape }}=).)*)(?:[" ]{{ item.option | regex_escape }}=\S+)?(.*")$'
     replace: '\1 {{ item.option }}={{ item.value }}\2'
-    backup: yes
+    backup: true
   with_items:
     - {option: audit, value: 1}
     - {option: amd_iommu, value: 'on'}
@@ -176,9 +176,9 @@
   register: grub_setup_2
 
 - name: Use jitterentropy_rng
-  blockinfile:
+  ansible.builtin.blockinfile:
     path: /etc/modules-load.d/jitterentropy_rng.conf
-    create: yes
+    create: true
     block: |
       jitterentropy_rng
     owner: 'root'
@@ -187,22 +187,40 @@
 
 # CIS  1.8
 - name: Update kernel
-  package:
+  ansible.builtin.package:
     state: latest
     name: "{{ kernel_packages }}"
   register: package_update
+  when: update_kernel is defined and update_kernel
+
+- name: Detect UEFI vs BIOS boot for grub path
+  ansible.builtin.stat:
+    path: /sys/firmware/efi
+  register: efi_dir
+  when: ansible_os_family == "RedHat"
+
+- name: Detect EFI grub.cfg path
+  ansible.builtin.stat:
+    path: "/boot/efi/EFI/{{ item }}/grub.cfg"
+  loop:
+    - redhat
+    - centos
+  register: efi_grub_paths
+  when:
+    - ansible_os_family == "RedHat"
+    - efi_dir.stat.exists | default(false)
 
 - name: Update Grub and Initramfs /RedHat
-  command: '{{ item }}'
+  ansible.builtin.command: '{{ item }}'
   with_items:
-    - 'grub2-mkconfig -o /boot/grub2/grub.cfg'
+    - "grub2-mkconfig -o /boot/grub2/grub.cfg"
     - 'dracut --force --regenerate-all -v'
   when:
     - grub_setup_1.changed or grub_setup_2.changed or package_update.changed
     - ansible_os_family == "RedHat"
 
 - name: Update Grub and Initramfs /Debian
-  command: '{{ item }}'
+  ansible.builtin.command: '{{ item }}'
   with_items:
     - 'update-grub'
   when:
@@ -210,14 +228,14 @@
     - ansible_os_family == "Debian"
 
 - name: "Restart nodes - apply configs"  # noqa 503
-  command: "reboot"
+  ansible.builtin.command: "reboot"
   async: 1
   poll: 0
   when:
     - grub_setup_1.changed or grub_setup_2.changed or package_update.changed
 
 - name: Wait for system to become reachable
-  wait_for_connection:
+  ansible.builtin.wait_for_connection:
     delay: 1
     timeout: 300
   when:
