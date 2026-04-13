@@ -34,8 +34,12 @@ kubevip_external_ip_range: "{{ groups['kube_node'] | default([]) | map('extract'
 kubevip_internal_ip_range: ""
 
 dashboard_enabled: true
+cert_manager_enabled: true
+cert_manager_version: v1.19.1
+cert_manager_cluster_issuer: selfsigned-cluster-issuer
+
 portainer_version: "2.39.2"
-portainer_ingress_host: "portainer.{{ cluster_external_ip }}.nip.io"
+portainer_ingress_hostname: "portainer.{{ ingress_hostname }}"
 portainer_ingress_class: traefik
 
 openebs_storage_enabled: true

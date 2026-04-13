@@ -5,6 +5,7 @@ metadata:
   namespace: kubernetes-dashboard
   annotations:
     traefik.ingress.kubernetes.io/router.tls: "true"
+    cert-manager.io/cluster-issuer: "{{ cert_manager_cluster_issuer }}"
 spec:
   ingressClassName: traefik
   rules:
@@ -18,3 +19,7 @@ spec:
             name: kubernetes-dashboard
             port:
               number: 443
+  tls:
+  - hosts:
+    - dashboard.{{ ingress_hostname }}
+    secretName: dashboard-tls

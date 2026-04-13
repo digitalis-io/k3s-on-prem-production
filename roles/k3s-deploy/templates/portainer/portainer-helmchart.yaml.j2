@@ -25,20 +25,21 @@ spec:
       type: ClusterIP
     tls:
       force: true
-{% if portainer_ingress_host | default('') | length > 0 %}
+{% if portainer_ingress_hostname | default('') | length > 0 %}
     ingress:
       enabled: true
       ingressClassName: {{ portainer_ingress_class }}
       annotations:
         traefik.ingress.kubernetes.io/router.tls: "true"
+        cert-manager.io/cluster-issuer: "{{ cert_manager_cluster_issuer }}"
       hosts:
-        - host: {{ portainer_ingress_host }}
+        - host: {{ portainer_ingress_hostname }}
           paths:
             - path: /
               pathType: Prefix
       tls:
         - hosts:
-            - {{ portainer_ingress_host }}
+            - {{ portainer_ingress_hostname }}
 {% else %}
     ingress:
       enabled: false

@@ -16,7 +16,8 @@
     psa_admission_enabled: "{{ admission_file.stat.exists }}"
   tags: always
 
-- ansible.builtin.import_tasks:
+- name: Import k3s binary tasks
+  ansible.builtin.import_tasks:
     file: k3s_binary.yml
   tags: always
 
@@ -24,11 +25,13 @@
   block:
 
     # tasks file for k3s-deploy
-    - ansible.builtin.import_tasks:
+    - name: Import cluster bootstrap tasks
+      ansible.builtin.import_tasks:
         file: cluster_bootstrap.yml
       tags: bootstrap
 
-    - ansible.builtin.import_tasks:
+    - name: Import cluster server tasks
+      ansible.builtin.import_tasks:
         file: cluster_server.yml
       tags: server
 
@@ -51,12 +54,14 @@
     - server
     - agent
 
-- ansible.builtin.import_tasks:
+- name: Import cluster agent tasks
+  ansible.builtin.import_tasks:
     file: cluster_agent.yml
   tags: agent
   when: "'kube_node' in group_names"
 
-- ansible.builtin.import_tasks:
+- name: Import cluster hardening tasks
+  ansible.builtin.import_tasks:
     file: cluster_hardening.yml
   tags: hardening
 
@@ -74,7 +79,8 @@
       when:
         - "'kube_master' in group_names"
 
-    - ansible.builtin.include_tasks:
+    - name: Include kube-vip tasks
+      ansible.builtin.include_tasks:
         file: kubevip.yml
         apply:
           tags: always
@@ -82,7 +88,17 @@
       when:
         - kubevip_enabled
 
-    - ansible.builtin.include_tasks:
+    - name: Include cert-manager tasks
+      ansible.builtin.include_tasks:
+        file: cert_manager.yml
+        apply:
+          tags: always
+      tags: cert_manager
+      when:
+        - cert_manager_enabled
+
+    - name: Include dashboard tasks
+      ansible.builtin.include_tasks:
         file: dashboard.yml
         apply:
           tags: always
@@ -91,7 +107,8 @@
         - dashboard_enabled
 
     # Kubeless is EOL — kept for backwards compatibility flag but tasks are no-ops
-    - ansible.builtin.include_tasks:
+    - name: Include kubeless tasks
+      ansible.builtin.include_tasks:
         file: kubeless.yml
         apply:
           tags: always
@@ -103,7 +120,8 @@
   when:
     - "'kube_master' in group_names"
 
-- ansible.builtin.include_tasks:
+- name: Include Falco security tasks
+  ansible.builtin.include_tasks:
     file: falco_security.yml
     apply:
       tags: always
