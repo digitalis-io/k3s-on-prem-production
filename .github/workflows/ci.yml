@@ -29,12 +29,8 @@ jobs:
         run: yamllint .
 
       - name: Run ansible-lint
-        env:
-          ANSIBLE_VAULT_PASSWORD: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
         run: |
-          echo "$ANSIBLE_VAULT_PASSWORD" > /tmp/vault_pass
-          ANSIBLE_VAULT_PASSWORD_FILE=/tmp/vault_pass ansible-lint cluster.yml
-          rm /tmp/vault_pass
+          ansible-lint cluster.yml
 
   syntax-check:
     name: Syntax Check
@@ -55,12 +51,7 @@ jobs:
         run: ansible-galaxy collection install -r requirements.yml
 
       - name: Syntax check
-        env:
-          ANSIBLE_VAULT_PASSWORD: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
         run: |
-          echo "$ANSIBLE_VAULT_PASSWORD" > /tmp/vault_pass
           ansible-playbook --syntax-check \
-            --vault-password-file /tmp/vault_pass \
             -i inventory-k3s.yml \
             cluster.yml
-          rm /tmp/vault_pass
