@@ -3,7 +3,7 @@
 # Provision the cluster
 - name: K3s Deployment
   become: true
-  gather_facts: True
+  gather_facts: true
   hosts: kube_cluster
   max_fail_percentage: 0
   roles:

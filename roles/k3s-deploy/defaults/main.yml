@@ -74,13 +74,13 @@ pod_ready_retries: 60
 pod_ready_delay: 10
 
 protected_files:
-    - /etc/falco/token
-    - /etc/k3s-encryption.yaml
-    - /etc/systemd/system/k3s-agent.service
-    - /etc/systemd/system/k3s-server.service
-    - /usr/lib/systemd/system/falco.service
-    - /usr/lib/systemd/system/rescue.service
-    - /var/lib/rancher/audit/audit-policy.yaml
-    - /var/lib/rancher/audit/webhook-config.yaml
+  - /etc/falco/token
+  - /etc/k3s-encryption.yaml
+  - /etc/systemd/system/k3s-agent.service
+  - /etc/systemd/system/k3s-server.service
+  - /usr/lib/systemd/system/falco.service
+  - /usr/lib/systemd/system/rescue.service
+  - /var/lib/rancher/audit/audit-policy.yaml
+  - /var/lib/rancher/audit/webhook-config.yaml
 
 ...
