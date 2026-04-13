@@ -28,13 +28,11 @@ jobs:
           K3S_PINNED=$(grep 'k3s_version:' roles/k3s-deploy/defaults/main.yml | awk '{print $2}')
           KUBEVIP_PINNED=$(grep 'kubevip_version:' roles/k3s-deploy/defaults/main.yml | awk '{print $2}')
           KUBEVIP_CP_PINNED=$(grep 'kubevip_cloud_provider_version:' roles/k3s-deploy/defaults/main.yml | awk '{print $2}')
-          INGRESS_PINNED=$(grep 'nginx_ingress_version:' roles/k3s-deploy/defaults/main.yml | awk '{print $2}')
-          DASHBOARD_PINNED=$(grep 'dashboard_version:' roles/k3s-deploy/defaults/main.yml | awk '{print $2}')
+          PORTAINER_PINNED=$(grep 'portainer_version:' roles/k3s-deploy/defaults/main.yml | head -1 | awk '{print $2}' | tr -d '"')
           echo "k3s=$K3S_PINNED" >> $GITHUB_OUTPUT
           echo "kubevip=$KUBEVIP_PINNED" >> $GITHUB_OUTPUT
           echo "kubevip_cp=$KUBEVIP_CP_PINNED" >> $GITHUB_OUTPUT
-          echo "ingress=$INGRESS_PINNED" >> $GITHUB_OUTPUT
-          echo "dashboard=$DASHBOARD_PINNED" >> $GITHUB_OUTPUT
+          echo "portainer=$PORTAINER_PINNED" >> $GITHUB_OUTPUT
 
       - name: Check k3s latest
         run: |
@@ -66,14 +64,14 @@ jobs:
             echo "kube-vip-cloud-provider is up to date: $PINNED"
           fi
 
-      - name: Check ingress-nginx latest
+      - name: Check Portainer latest
         run: |
-          LATEST=$(curl -s https://api.github.com/repos/kubernetes/ingress-nginx/releases/latest | jq -r '.tag_name | ltrimstr("controller-v")')
-          PINNED="${{ steps.pinned.outputs.ingress }}"
+          LATEST=$(curl -s https://api.github.com/repos/portainer/portainer/releases/latest | jq -r '.tag_name | ltrimstr("v")')
+          PINNED="${{ steps.pinned.outputs.portainer }}"
           if [ "$LATEST" != "$PINNED" ]; then
-            echo "::warning::ingress-nginx update available: pinned=$PINNED latest=$LATEST"
+            echo "::warning::Portainer update available: pinned=$PINNED latest=$LATEST"
           else
-            echo "ingress-nginx is up to date: $PINNED"
+            echo "Portainer is up to date: $PINNED"
           fi
 
       - name: Check dashboard latest

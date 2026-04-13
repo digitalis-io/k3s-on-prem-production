@@ -82,6 +82,18 @@ variable "kubevip_vip_address" {
   default     = ""
 }
 
+variable "kubevip_external_ip_range" {
+  description = "IP range for kube-vip external LoadBalancer services (e.g. 192.168.1.200-192.168.1.240)"
+  type        = string
+  default     = ""
+}
+
+variable "kubevip_internal_ip_range" {
+  description = "IP range for kube-vip internal LoadBalancer services. Used when create_network is true."
+  type        = string
+  default     = ""
+}
+
 # ── Security group (firewall) ─────────────────────────────
 variable "ssh_allowed_cidrs" {
   description = "CIDRs allowed to SSH into nodes"

@@ -36,9 +36,6 @@ ExecStart={{ k3s_binary_path }}/k3s server \
     --kubelet-arg=tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_RSA_WITH_AES_128_GCM_SHA256,TLS_RSA_WITH_AES_256_GCM_SHA384 \
     --protect-kernel-defaults=true \
     --write-kubeconfig-mode 0600 \
-{% if nginx_ingress_enabled %}
-    --disable traefik \
-{% endif %}
 {% if kubevip_enabled %}
     --disable servicelb \
 {% endif %}
@@ -52,11 +49,12 @@ ExecStart={{ k3s_binary_path }}/k3s server \
 {%if 'libselinux' in ansible_facts.packages %}
     --selinux \
 {% endif %}
-    --advertise-address {{ ansible_host }} \
-    --bind-address 0.0.0.0 \
+    --advertise-address {{ advertise_address }} \
+    --bind-address {{ bind_address }} \
     --node-ip {{ ansible_host }} \
     --cluster-cidr={{ cluster_cidr }} \
     --service-cidr={{ service_cidr }} \
+    --flannel-backend={{ flannel_backend | default('wireguard-native') }} \
     --tls-san {{ cluster_external_ip }}{% if kubevip_vip_address | default('') | length > 0 %} \
     --tls-san {{ kubevip_vip_address }}{% endif %}
 Delegate=yes

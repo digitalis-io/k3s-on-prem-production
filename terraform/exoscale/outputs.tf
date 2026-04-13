@@ -43,6 +43,8 @@ output "ansible_inventory" {
     create_network               = var.create_network
     private_network_cidr         = var.private_network_cidr
     kubevip_vip_address          = var.kubevip_vip_address
+    kubevip_external_ip_range    = coalesce(var.kubevip_external_ip_range, join(",", [for a in exoscale_compute_instance.agent : "${a.public_ip_address}/32"]))
+    kubevip_internal_ip_range    = var.create_network ? coalesce(var.kubevip_internal_ip_range, join(",", [for a in exoscale_compute_instance.agent : "${tolist(a.network_interface)[0].ip_address}/32"])) : ""
     vault_k3s_cluster_secret     = base64encode(random_password.k3s_cluster_secret.result)
     vault_k3s_encryption_secret  = base64encode(random_password.k3s_encryption_secret.result)
     vault_falco_sidekick_slack   = base64encode(random_password.falco_sidekick_slack.result)

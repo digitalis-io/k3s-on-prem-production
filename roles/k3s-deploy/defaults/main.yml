@@ -10,13 +10,18 @@ arch: "{{ arch_mapping[ansible_facts['architecture']] | default('amd64') }}"
 
 # defaults file for k3s-deploy
 #
-ingress_hostname: default
+ingress_hostname: "{{ cluster_external_ip }}.nip.io"
 
 k3s_version: v1.32.2+k3s1
 k3s_binary_path: /usr/local/bin
 kubectl_cmd: "{{ k3s_binary_path }}/k3s kubectl"
 
 cluster_external_ip: "{{ ansible_host }}"
+# Change to "none" to disable WireGuard and use VXLAN instead
+# https://docs.k3s.io/networking/basic-network-options
+flannel_backend: wireguard-native
+bind_address: "{{ ansible_facts['ansible_' ~ (internal_interface | replace('-', '_'))]['ipv4']['address'] | default('0.0.0.0') }}"
+advertise_address: "{{ ansible_facts['ansible_' ~ (internal_interface | replace('-', '_'))]['ipv4']['address'] | default(ansible_host) }}"
 cluster_cidr: 10.43.0.0/16
 service_cidr: 10.44.0.0/16
 
@@ -25,16 +30,13 @@ kubevip_version: v1.1.2
 kubevip_cloud_provider_version: v0.0.12
 kubevip_interface: "{{ ansible_default_ipv4.interface | default('eth0') }}"
 kubevip_vip_address: ""
-kubevip_external_ip_range: 192.168.1.200-192.168.1.240
-kubevip_internal_ip_range: 10.10.90.100-10.10.90.240
+kubevip_external_ip_range: "{{ groups['kube_node'] | default([]) | map('extract', hostvars, 'ansible_host') | map('regex_replace', '$', '/32') | join(',') }}"
+kubevip_internal_ip_range: ""
 
 dashboard_enabled: true
 portainer_version: "2.39.2"
 portainer_ingress_host: "portainer.{{ cluster_external_ip }}.nip.io"
 portainer_ingress_class: traefik
-
-nginx_ingress_enabled: false
-nginx_ingress_version: 1.11.3
 
 openebs_storage_enabled: true
 openebs_version: 2.8.0

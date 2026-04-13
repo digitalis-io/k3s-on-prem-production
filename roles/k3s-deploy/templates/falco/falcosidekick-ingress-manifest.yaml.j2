@@ -3,16 +3,10 @@ kind: Ingress
 metadata:
   name: falcosidekick-ingress
   namespace: falco
-  annotations:
-    kubernetes.io/ingress.class: "internal-ingress-nginx"
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
 spec:
+  ingressClassName: traefik
   rules:
-{% if kubevip_internal_ip_range is defined %}
-  - host: falcosidekick.{{ internal_ingress_hostname }}
-{% else %}
   - host: falcosidekick.{{ ingress_hostname }}
-{% endif %}
     http:
       paths:
       - path: /

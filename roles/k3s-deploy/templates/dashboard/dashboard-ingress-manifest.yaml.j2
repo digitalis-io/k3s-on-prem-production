@@ -4,9 +4,9 @@ metadata:
   name: dashboard-ingress
   namespace: kubernetes-dashboard
   annotations:
-    kubernetes.io/ingress.class: "internal-ingress-nginx"
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    traefik.ingress.kubernetes.io/router.tls: "true"
 spec:
+  ingressClassName: traefik
   rules:
   - host: dashboard.{{ ingress_hostname }}
     http:

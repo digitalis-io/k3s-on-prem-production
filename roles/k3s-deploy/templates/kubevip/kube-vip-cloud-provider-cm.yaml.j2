@@ -5,7 +5,15 @@ metadata:
   name: kubevip
   namespace: kube-system
 data:
+{% if '/' in kubevip_external_ip_range %}
+  cidr-global: {{ kubevip_external_ip_range }}
+{% else %}
   range-global: {{ kubevip_external_ip_range }}
+{% endif %}
 {% if kubevip_internal_ip_range is defined and kubevip_internal_ip_range | length > 0 %}
+{% if '/' in kubevip_internal_ip_range %}
+  cidr-internal: {{ kubevip_internal_ip_range }}
+{% else %}
   range-internal: {{ kubevip_internal_ip_range }}
+{% endif %}
 {% endif %}

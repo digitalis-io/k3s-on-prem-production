@@ -12,6 +12,12 @@ all:
 %{ if create_network && kubevip_vip_address != "" ~}
         kubevip_vip_address: "${kubevip_vip_address}"
 %{ endif ~}
+%{ if kubevip_external_ip_range != "" ~}
+        kubevip_external_ip_range: "${kubevip_external_ip_range}"
+%{ endif ~}
+%{ if create_network && kubevip_internal_ip_range != "" ~}
+        kubevip_internal_ip_range: "${kubevip_internal_ip_range}"
+%{ endif ~}
       children:
         kube_master:
           hosts:

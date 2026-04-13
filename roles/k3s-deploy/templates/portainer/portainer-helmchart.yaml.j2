@@ -30,7 +30,7 @@ spec:
       enabled: true
       ingressClassName: {{ portainer_ingress_class }}
       annotations:
-        nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+        traefik.ingress.kubernetes.io/router.tls: "true"
       hosts:
         - host: {{ portainer_ingress_host }}
           paths:

@@ -56,10 +56,10 @@
     owner: root
     group: root
 
-- name: Load Falco module
-  ansible.builtin.command: |
-    falco-driver-loader
+- name: Load Falco driver (falcoctl)
+  ansible.builtin.command: falcoctl driver install
   changed_when: true
+  failed_when: false
   when: falco_module.stdout_lines | length == 0
 
 - name: Falco Sidekick
@@ -92,14 +92,25 @@
   when: "'kube_master' in group_names"
 
 # K8s 1.24+: ServiceAccount tokens are no longer auto-created.
-# Use kubectl create token for a long-lived token instead.
-- name: Security - Create admin-user long-lived token (K8s 1.24+)
+# Create a dedicated Falco SA with cluster-admin binding, then issue a long-lived token.
+- name: Security - Create Falco service account and cluster-admin binding
+  ansible.builtin.command: "{{ item }}"
+  register: kubectl
+  changed_when: "'created' in kubectl.stdout"
+  failed_when: "'AlreadyExists' not in kubectl.stderr and kubectl.rc != 0"
+  loop:
+    - "{{ kubectl_cmd }} create serviceaccount falco -n kube-system"
+    - "{{ kubectl_cmd }} create clusterrolebinding falco --clusterrole=cluster-admin --serviceaccount=kube-system:falco"
+  run_once: true
+  when: "'kube_master' in group_names"
+
+- name: Security - Create Falco long-lived token (K8s 1.24+)
   ansible.builtin.command: |
-    {{ kubectl_cmd }} create token admin-user -n kube-system --duration=8760h
+    {{ kubectl_cmd }} create token falco -n kube-system --duration=8760h
   changed_when: false
   register: api_token
-  when:
-    - "'kube_master' in group_names"
+  run_once: true
+  when: "'kube_master' in group_names"
 
 - name: Store api token
   ansible.builtin.set_fact:

@@ -18,6 +18,7 @@ k3s_dependencies:
   - socat
   - util-linux
   - wireguard-tools
+  - kernel-modules-extra   # provides wireguard.ko on some RHEL 9 minimal installs
   # ebtables is provided by ebtables-legacy on RHEL 9 or replaced by nftables
   # Use nftables-based filtering; ebtables-legacy is available if needed
 

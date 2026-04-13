@@ -39,8 +39,7 @@
         - kube-public
         - kube-node-lease
         - falco
-        - ingress-nginx
-        - ingress-nginx-internal
+        - portainer
         - kubernetes-dashboard
 
     - name: Security - Label privileged namespaces for PSA

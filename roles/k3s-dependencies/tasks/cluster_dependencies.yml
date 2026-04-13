@@ -192,7 +192,9 @@
       with_items:
         - 80/tcp
         - 443/tcp
-        - 8472/udp          # Canal/Flannel VXLAN overlay networking
+        - 8472/udp          # Canal/Flannel VXLAN overlay (required when flannel_backend=vxlan)
+        - 51820/udp         # Flannel WireGuard (IPv4, required when flannel_backend=wireguard-native)
+        - 51821/udp         # Flannel WireGuard (IPv6, required when flannel_backend=wireguard-native)
         - 9099/tcp          # Canal/Flannel livenessProbe/readinessProbe
         - 10250-10255/tcp   # kubelet API + Ingress controller livenessProbe/readinessProbe
         - 30000-32767/tcp   # NodePort port range

@@ -83,17 +83,6 @@
         - kubevip_enabled
 
     - ansible.builtin.include_tasks:
-        file: ingress.yml
-        apply:
-          tags: always
-      tags:
-        - ingress
-        - dashboard
-        - falco_security
-      when:
-        - nginx_ingress_enabled
-
-    - ansible.builtin.include_tasks:
         file: dashboard.yml
         apply:
           tags: always
