@@ -1,6 +1,6 @@
 check "ssh_key_provided" {
   assert {
-    condition     = var.ssh_key_name != "" || length(var.ssh_public_keys) > 0
+    condition = var.ssh_key_name != "" || length(var.ssh_public_keys) > 0
 
     error_message = "Either ssh_key_name or ssh_public_keys must be provided"
   }

@@ -1,40 +1,45 @@
 ---
 
-- name: cert-manager - Deploy HelmChart manifest
-  ansible.builtin.template:
-    src: cert-manager/cert-manager-helmchart.yaml.j2
-    dest: /var/lib/rancher/k3s/server/manifests/cert-manager.yaml
-    owner: 'root'
-    group: 'root'
-    mode: '0600'
+- name: cert-manager - Deploy and configure
+  block:
+    - name: cert-manager - Deploy HelmChart manifest
+      ansible.builtin.template:
+        src: cert-manager/cert-manager-helmchart.yaml.j2
+        dest: /var/lib/rancher/k3s/server/manifests/cert-manager.yaml
+        owner: 'root'
+        group: 'root'
+        mode: '0600'
 
-- name: cert-manager - Wait for deployment to be ready
-  ansible.builtin.shell: |
-    set -o pipefail
-    {{ kubectl_cmd }} get pods -n cert-manager | tail -n +2 | grep -Ev "Completed|Running|Success"
-  register: pods
-  until: (pods.stdout_lines | length) == 0
-  failed_when: false
-  changed_when: false
-  retries: "{{ pod_ready_retries }}"
-  delay: "{{ pod_ready_delay }}"
-  run_once: true
+    - name: cert-manager - Wait for deployment availability
+      ansible.builtin.shell: >
+        {{ kubectl_cmd }} wait --for=condition=available
+        --timeout={{ (pod_ready_retries | int) * (pod_ready_delay | int) }}s
+        deployment --all -n cert-manager
+      register: cm_wait
+      retries: 3
+      delay: 10
+      until: cm_wait.rc == 0
+      run_once: true
+      changed_when: false
 
-- name: cert-manager - Deploy ClusterIssuer manifest
-  ansible.builtin.template:
-    src: cert-manager/selfsigned-cluster-issuer.yaml.j2
-    dest: /var/lib/rancher/k3s/server/custom-manifests/selfsigned-cluster-issuer.yaml
-    owner: 'root'
-    group: 'root'
-    mode: '0600'
-  run_once: true
+    - name: cert-manager - Deploy ClusterIssuer manifest
+      ansible.builtin.template:
+        src: cert-manager/selfsigned-cluster-issuer.yaml.j2
+        dest: /var/lib/rancher/k3s/server/custom-manifests/selfsigned-cluster-issuer.yaml
+        owner: 'root'
+        group: 'root'
+        mode: '0600'
+      run_once: true
 
-- name: cert-manager - Apply ClusterIssuer
-  ansible.builtin.command: |
-    {{ kubectl_cmd }} apply -f /var/lib/rancher/k3s/server/custom-manifests/selfsigned-cluster-issuer.yaml
-  register: kubectl
-  changed_when: "'created' in kubectl.stdout or 'configured' in kubectl.stdout"
-  failed_when: "'AlreadyExists' not in kubectl.stderr and kubectl.rc != 0"
-  run_once: true
+    - name: cert-manager - Apply ClusterIssuer
+      ansible.builtin.command: |
+        {{ kubectl_cmd }} apply -f /var/lib/rancher/k3s/server/custom-manifests/selfsigned-cluster-issuer.yaml
+      register: kubectl
+      retries: 3
+      delay: 10
+      until: kubectl.rc == 0
+      changed_when: "'created' in kubectl.stdout or 'configured' in kubectl.stdout"
+      failed_when: "'AlreadyExists' not in kubectl.stderr and kubectl.rc != 0"
+      run_once: true
 
 ...

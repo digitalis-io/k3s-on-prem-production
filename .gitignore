@@ -1,5 +1,63 @@
+# Project-specific
 k3s-binary
 k3s-kube-config
 tags
 artifacts
 cluster-monitoring
+inventory.yaml
+
+# Ansible
+*.retry
+.vault_pass
+vault_pass.txt
+vault-password*
+group_vars/all/vault.yml
+host_vars/*/vault.yml
+.ansible/
+ansible.log
+mitogen/
+
+# Ansible collections/roles (installed dependencies)
+collections/
+roles/external/
+
+# Terraform
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.backup
+**/*.tfstate.*.backup
+**/.terraform.lock.hcl
+**/terraform.tfvars
+**/terraform.tfvars.json
+**/*.auto.tfvars
+**/*.auto.tfvars.json
+**/override.tf
+**/override.tf.json
+**/*_override.tf
+**/*_override.tf.json
+**/crash.log
+**/crash.*.log
+
+# Secrets / credentials
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+*_rsa
+*_ed25519
+.env
+.env.*
+secrets.yml
+secrets.yaml
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+

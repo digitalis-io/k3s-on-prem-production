@@ -8,7 +8,7 @@ all:
     vault_falco_sidekick_slack: R1JFdDhIUkVpRk9lM09YNlo5dFVYa0tJbm03dUs1YkE=
     external_interface: ens3
     internal_interface: ens6
-    kubevip_external_ip_range: "85.217.163.144/32"
+    kubevip_external_ip_range: "92.39.60.48/32"
     kubevip_internal_ip_range: "10.13.0.100/32"
 
   children:
@@ -19,8 +19,8 @@ all:
         kube_master:
           hosts:
             master01:
-              ansible_host: 194.182.161.105
+              ansible_host: 92.39.62.241
         kube_node:
           hosts:
             worker01:
-              ansible_host: 85.217.163.144
+              ansible_host: 92.39.60.48
