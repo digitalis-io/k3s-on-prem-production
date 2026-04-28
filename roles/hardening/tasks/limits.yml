@@ -1,25 +1,72 @@
 ---
 
-- name: Find cron files and directories
-  find:
-    paths:
-      - /etc
-    patterns:
-      - cron.hourly
-      - cron.daily
-      - cron.weekly
-      - cron.monthly
-      - cron.d
-      - crontab
-    file_type: any
-  register: cron_directories
+# CIS 1.5.4
+# STIG 021900
+- name: Ensure core dumps are restricted
+  pam_limits:
+    dest: /etc/security/limits.conf
+    domain: '*'
+    limit_type: hard
+    limit_item: core
+    value: '0'
 
-- name: Ensure permissions on cron files and directories are configured
-  file:
-    path: "{{ item.path }}"
-    owner: root
-    group: root
-    mode: og-rwx
-  with_items: "{{ cron_directories.files }}"
+- name: Ensure hard core dump limit in limits.d
+  pam_limits:
+    dest: /etc/security/limits.d/99-hardening.conf
+    domain: '*'
+    limit_type: hard
+    limit_item: core
+    value: '0'
+
+- name: Ensure soft core dump limit in limits.d
+  pam_limits:
+    dest: /etc/security/limits.d/99-hardening.conf
+    domain: '*'
+    limit_type: soft
+    limit_item: core
+    value: '0'
+
+# CIS 5.4.1 / STIG 020230
+- name: Restrict number of open files (hard)
+  pam_limits:
+    dest: /etc/security/limits.d/99-hardening.conf
+    domain: '*'
+    limit_type: hard
+    limit_item: nofile
+    value: '65536'
+
+- name: Restrict number of open files (soft)
+  pam_limits:
+    dest: /etc/security/limits.d/99-hardening.conf
+    domain: '*'
+    limit_type: soft
+    limit_item: nofile
+    value: '65536'
+
+# CIS 1.5.4 - prevent setuid processes from dumping core
+- name: Ensure fs.suid_dumpable is disabled
+  sysctl:
+    name: fs.suid_dumpable
+    value: '0'
+    state: present
+    reload: yes
+    sysctl_file: /etc/sysctl.d/99-hardening.conf
+
+# STIG 021900 - restrict nproc to prevent fork bombs
+- name: Restrict max user processes (hard)
+  pam_limits:
+    dest: /etc/security/limits.d/99-hardening.conf
+    domain: '*'
+    limit_type: hard
+    limit_item: nproc
+    value: '16384'
+
+- name: Restrict max user processes (soft)
+  pam_limits:
+    dest: /etc/security/limits.d/99-hardening.conf
+    domain: '*'
+    limit_type: soft
+    limit_item: nproc
+    value: '16384'
 
 ...
