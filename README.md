@@ -1,4 +1,3 @@
-```html
   <p align="center">
     <a href="https://digitalis.io">
       <img src="https://digitalis-marketplace-assets.s3.us-east-1.amazonaws.com/DigitalisDigital_DigitalisFullLogoGradient+-+medium.png" alt="Digitalis.IO" width="300">
@@ -8,7 +7,6 @@
   <p align="center">
     <em>Built and maintained by <a href="https://digitalis.io">Digitalis.IO</a></em>
   </p>
-```
 
 # K3s Lightweight Kubernetes made ready for production
 
