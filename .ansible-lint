@@ -1,0 +1,22 @@
+---
+profile: production
+
+exclude_paths:
+  - .git/
+  - .github/
+  - molecule/
+
+skip_list:
+  - yaml[truthy]          # handled by yamllint truthy rule separately
+  - no-changed-when       # we explicitly set changed_when where needed
+  - command-instead-of-module  # firewalld workaround is intentional
+
+warn_list:
+  - experimental
+
+use_default_rules: true
+
+mock_roles:
+  - hardening
+  - k3s-dependencies
+  - k3s-deploy

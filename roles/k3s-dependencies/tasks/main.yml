@@ -1,12 +1,48 @@
 ---
 # tasks file for k3s-dependencies
-#
+
+- name: Assert required variables are defined
+  ansible.builtin.assert:
+    that:
+      - vault_k3s_cluster_secret is defined
+      - vault_k3s_cluster_secret | length > 0
+      - vault_k3s_encryption_secret is defined
+      - vault_k3s_encryption_secret | length > 0
+      - vault_falco_sidekick_slack is defined
+      - vault_falco_sidekick_slack | length > 0
+    fail_msg: "vault_k3s_cluster_secret, vault_k3s_encryption_secret, and vault_falco_sidekick_slack must be defined and non-empty"
+  tags: always
 
 - name: Retrieve package facts
-  package_facts:
+  ansible.builtin.package_facts:
     manager: "auto"
   tags: always
 
-- import_tasks: cluster_dependencies.yml
+- name: Install dependencies for k3s
+  ansible.builtin.import_tasks: cluster_dependencies.yml
 
+- name: Install kubectl
+  ansible.builtin.get_url:
+    url: "https://dl.k8s.io/release/{{ kubectl_version }}/bin/linux/{{ arch }}/kubectl"
+    dest: /usr/local/bin/kubectl
+    mode: '0755'
+
+- name: Install Stern (log tailing)
+  ansible.builtin.unarchive:
+    src: "https://github.com/stern/stern/releases/download/v{{ stern_version }}/stern_{{ stern_version }}_linux_{{ arch }}.tar.gz"
+    dest: /usr/local/bin
+    remote_src: true
+    extra_opts:
+      - "--strip-components=1"
+      - "stern"
+    mode: '0755'
+
+- name: Install k9s (TUI)
+  ansible.builtin.unarchive:
+    src: "https://github.com/derailed/k9s/releases/download/{{ k9s_version }}/k9s_Linux_amd64.tar.gz"
+    dest: /usr/local/bin
+    remote_src: true
+    extra_opts:
+      - "k9s"
+    mode: '0755'
 ...

@@ -1,0 +1,85 @@
+---
+name: Version Drift Detection
+
+on:
+  schedule:
+    - cron: "0 8 * * 1"  # Every Monday at 08:00 UTC
+  workflow_dispatch:
+
+jobs:
+  version-check:
+    name: Check component versions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install yq
+        run: pip install yq
+
+      - name: Get pinned versions
+        id: pinned
+        run: |
+          K3S_PINNED=$(grep 'k3s_version:' roles/k3s-deploy/defaults/main.yml | awk '{print $2}')
+          KUBEVIP_PINNED=$(grep 'kubevip_version:' roles/k3s-deploy/defaults/main.yml | awk '{print $2}')
+          KUBEVIP_CP_PINNED=$(grep 'kubevip_cloud_provider_version:' roles/k3s-deploy/defaults/main.yml | awk '{print $2}')
+          PORTAINER_PINNED=$(grep 'portainer_version:' roles/k3s-deploy/defaults/main.yml | head -1 | awk '{print $2}' | tr -d '"')
+          echo "k3s=$K3S_PINNED" >> $GITHUB_OUTPUT
+          echo "kubevip=$KUBEVIP_PINNED" >> $GITHUB_OUTPUT
+          echo "kubevip_cp=$KUBEVIP_CP_PINNED" >> $GITHUB_OUTPUT
+          echo "portainer=$PORTAINER_PINNED" >> $GITHUB_OUTPUT
+
+      - name: Check k3s latest
+        run: |
+          LATEST=$(curl -s https://api.github.com/repos/k3s-io/k3s/releases/latest | jq -r .tag_name)
+          PINNED="${{ steps.pinned.outputs.k3s }}"
+          if [ "$LATEST" != "$PINNED" ]; then
+            echo "::warning::k3s update available: pinned=$PINNED latest=$LATEST"
+          else
+            echo "k3s is up to date: $PINNED"
+          fi
+
+      - name: Check kube-vip latest
+        run: |
+          LATEST=$(curl -s https://api.github.com/repos/kube-vip/kube-vip/releases/latest | jq -r .tag_name)
+          PINNED="${{ steps.pinned.outputs.kubevip }}"
+          if [ "$LATEST" != "$PINNED" ]; then
+            echo "::warning::kube-vip update available: pinned=$PINNED latest=$LATEST"
+          else
+            echo "kube-vip is up to date: $PINNED"
+          fi
+
+      - name: Check kube-vip cloud provider latest
+        run: |
+          LATEST=$(curl -s https://api.github.com/repos/kube-vip/kube-vip-cloud-provider/releases/latest | jq -r .tag_name)
+          PINNED="v${{ steps.pinned.outputs.kubevip_cp }}"
+          if [ "$LATEST" != "$PINNED" ]; then
+            echo "::warning::kube-vip-cloud-provider update available: pinned=$PINNED latest=$LATEST"
+          else
+            echo "kube-vip-cloud-provider is up to date: $PINNED"
+          fi
+
+      - name: Check Portainer latest
+        run: |
+          LATEST=$(curl -s https://api.github.com/repos/portainer/portainer/releases/latest | jq -r '.tag_name | ltrimstr("v")')
+          PINNED="${{ steps.pinned.outputs.portainer }}"
+          if [ "$LATEST" != "$PINNED" ]; then
+            echo "::warning::Portainer update available: pinned=$PINNED latest=$LATEST"
+          else
+            echo "Portainer is up to date: $PINNED"
+          fi
+
+      - name: Check dashboard latest
+        run: |
+          LATEST=$(curl -s https://api.github.com/repos/kubernetes/dashboard/releases/latest | jq -r .tag_name)
+          PINNED="${{ steps.pinned.outputs.dashboard }}"
+          if [ "$LATEST" != "$PINNED" ]; then
+            echo "::warning::kubernetes-dashboard update available: pinned=$PINNED latest=$LATEST"
+          else
+            echo "kubernetes-dashboard is up to date: $PINNED"
+          fi

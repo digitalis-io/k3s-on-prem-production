@@ -1,0 +1,17 @@
+---
+# Non-secret cluster variables
+k3s_version: v1.32.2+k3s1
+external_interface: eth1
+internal_interface: eth0
+kubevip_external_ip_range: 192.168.1.200-192.168.1.240
+kubevip_internal_ip_range: 192.168.122.200-192.168.122.240
+
+# Reference vault variables (vault_ prefix convention)
+k3s_cluster_secret: "{{ vault_k3s_cluster_secret }}"
+k3s_encryption_secret: "{{ vault_k3s_encryption_secret }}"
+falco_sidekick_slack: "{{ vault_falco_sidekick_slack }}"
+
+hardening_enabled: true
+update_kernel: false
+# not recommended to enable public SSH access, but can be useful for troubleshooting or in environments with strict network policies
+allow_public_ssh: true

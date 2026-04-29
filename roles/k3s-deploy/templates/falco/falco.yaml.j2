@@ -43,8 +43,4 @@ json_output: true
 json_include_output_property: true
 http_output:
   enabled: true
-{% if metallb_internal_ip_range is defined %}
-  url: "http://falcosidekick.{{ hostvars[groups['kube_master'][0]]['internal_ingress_hostname'] }}/"
-{% else %}
-  url: "http://falcosidekick.{{ hostvars[groups['kube_master'][0]]['ingress_hostname'] }}/"
-{% endif %}
+  url: "http://falcosidekick.{{ ingress_hostname | default(cluster_external_ip ~ '.nip.io') }}/"

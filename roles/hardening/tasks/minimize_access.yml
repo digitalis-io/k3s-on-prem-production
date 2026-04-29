@@ -18,13 +18,13 @@
   shell: |
     set -o pipefail
     df --local -P | awk {'if (NR!=1) print $6'} | xargs -I '{}' find '{}' -xdev -type d -perm -0002 2>/dev/null | xargs chmod a+t
-  changed_when: no
-  failed_when: no
+  changed_when: false
+  failed_when: false
 
 - name: Disable root account
   user:
     name: root
-    password_lock: yes
+    password_lock: true
   when: disable_root_user
 
 # CIS 1.4.3
@@ -36,17 +36,6 @@
     owner: 'root'
     group: 'root'
     mode: '0400'
-
-# STIG 020230
-- name: Disable Ctrl-Alt-Del Reboot Activation
-  systemd:
-    name: ctrl-alt-del.target
-    masked: yes
-
-- name: "Ensure sudo is installed"
-  package:
-    name: sudo
-    state: present
 
 - name: "Ensure sudo commands use pty"
   lineinfile:
@@ -109,7 +98,7 @@
     - /usr/local/bin
     - /usr/local/sbin
     - /usr/sbin
-  changed_when: no
+  changed_when: false
 
 - name: Disable securetty
   copy:
@@ -118,7 +107,7 @@
     mode: '0400'
     owner: root
     content: ""
-    force: no
+    force: false
 
 # CIS 5.6
 - name: Disable su binary for non-sudo users
@@ -144,32 +133,14 @@
 
 - name: "Find all sudoers files."
   command: "find /etc/sudoers /etc/sudoers.d/ -type f ! -name '*~' ! -name '*.*'"
-  check_mode: no
-  changed_when: no
-  failed_when: no
+  check_mode: false
+  changed_when: false
+  failed_when: false
   register: sudoers_files
-
-# STIG 010340
-- name: Users must provide a password for privilege escalation
-  replace:
-    path: "{{ item }}"
-    regexp: '^([^#].*)NOPASSWD(.*)'
-    replace: '\1PASSWD\2'
-    validate: '/usr/sbin/visudo -cf %s'
-  with_items: "{{ sudoers_files.stdout_lines }}"
-
-# STIG 010350
-- name: Users must re-authenticate for privilege escalation
-  replace:
-    path: "{{ item }}"
-    regexp: '^([^#].*)!authenticate(.*)'
-    replace: '\1authenticate\2'
-    validate: '/usr/sbin/visudo -cf %s'
-  with_items: "{{ sudoers_files.stdout_lines }}"
 
 - name: Update the profiles file with personal variables
   lineinfile:
-    backup: yes
+    backup: true
     line: '{{ item }}'
     path: /etc/profile
     regexp: '{{ item }}'
@@ -195,27 +166,7 @@
     path: "{{ bashrc_file }}"
     regexp: 'umask.*022$'
     replace: 'umask 027'
-    backup: yes
-
-# STIG 010200
-- name: "The PAM system service must be configured to store only encrypted representations of passwords."
-  pamd:
-    name: system-auth
-    state: "{{ item.state }}"
-    type: password
-    control: sufficient
-    module_path: pam_unix.so
-    module_arguments: "{{ item.args }}"
-  with_items:
-    - state: args_present
-      args:
-        - "sha512"
-    - state: args_absent
-      args:
-        - "md5"
-        - "bigcrypt"
-        - "sha256"
-        - "blowfish"
+    backup: true
 
 # STIG 010320
 # STIG 010330
@@ -272,7 +223,7 @@
   lineinfile:
     state: present
     dest: "{{ bashrc_file }}"
-    create: yes
+    create: true
     regexp: "^TMOUT="
     line: "TMOUT={{ shell_timeout_sec }} ; export TMOUT"
     owner: 'root'
@@ -283,7 +234,7 @@
   lineinfile:
     state: present
     dest: /etc/profile
-    create: yes
+    create: true
     regexp: "^TMOUT="
     line: "TMOUT={{ shell_timeout_sec }} ; export TMOUT"
     owner: 'root'
@@ -294,7 +245,7 @@
   lineinfile:
     state: present
     dest: /etc/profile.d/tmout.sh
-    create: yes
+    create: true
     regexp: "^TMOUT="
     line: "TMOUT={{ shell_timeout_sec }} ; export TMOUT"
     owner: 'root'
@@ -334,7 +285,7 @@
 # STIG 010119
 - name: "Ensure When passwords are changed or new passwords are established, pwquality must be used"
   lineinfile:
-    create: yes
+    create: true
     dest: /etc/pam.d/passwd
     line: password required pam_pwquality.so retry=3
     regexp: '^#?password required pam_pwquality.so retry'
@@ -363,7 +314,7 @@
 - name: Remove group/others from user directory
   shell: |
     find {{ ansible_env.HOME }} -type d -exec chmod go-rwx {} \;
-  changed_when: no
+  changed_when: false
 
 - name: Create limits.d-directory
   file:
@@ -436,7 +387,7 @@
     mode: '{{ item.mode }}'
     owner: '{{ item.owner }}'
     path: '{{ item.path }}'
-    recurse: yes
+    recurse: true
   with_items:
     - {path: /etc/audit, owner: root, group: root, mode: 'go='}
     - {path: /etc/grub.d, owner: root, group: root, mode: 'go='}

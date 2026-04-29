@@ -1,0 +1,46 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: portainer
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/warn: privileged
+---
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: portainer
+  namespace: kube-system
+spec:
+  repo: https://portainer.github.io/k8s/
+  chart: portainer
+  version: {{ portainer_version }}
+  targetNamespace: portainer
+  createNamespace: false
+  valuesContent: |-
+    service:
+      type: ClusterIP
+    tls:
+      force: true
+{% if portainer_ingress_hostname | default('') | length > 0 %}
+    ingress:
+      enabled: true
+      ingressClassName: {{ portainer_ingress_class }}
+      annotations:
+        traefik.ingress.kubernetes.io/router.tls: "true"
+        cert-manager.io/cluster-issuer: "{{ cert_manager_cluster_issuer }}"
+      hosts:
+        - host: {{ portainer_ingress_hostname }}
+          paths:
+            - path: /
+              pathType: Prefix
+      tls:
+        - hosts:
+            - {{ portainer_ingress_hostname }}
+{% else %}
+    ingress:
+      enabled: false
+{% endif %}

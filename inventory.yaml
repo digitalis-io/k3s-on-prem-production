@@ -1,0 +1,26 @@
+---
+
+all:
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+    vault_k3s_cluster_secret: WDZXZ3BiT0swVTFnNlVhN0VBeFdwNnMySTRZMUhEblM=
+    vault_k3s_encryption_secret: dTFhb1R0ZzlKdnRkcjlzSU92MHRhOFVCOGszSW5DelE=
+    vault_falco_sidekick_slack: R1JFdDhIUkVpRk9lM09YNlo5dFVYa0tJbm03dUs1YkE=
+    external_interface: ens3
+    internal_interface: ens6
+    kubevip_external_ip_range: "92.39.60.48/32"
+    kubevip_internal_ip_range: "10.13.0.100/32"
+
+  children:
+    kube_cluster:
+      vars:
+        kubevip_vip_address: ""
+      children:
+        kube_master:
+          hosts:
+            master01:
+              ansible_host: 92.39.62.241
+        kube_node:
+          hosts:
+            worker01:
+              ansible_host: 92.39.60.48

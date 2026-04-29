@@ -2,13 +2,17 @@
 
 # Provision the cluster
 - name: K3s Deployment
-  become: yes
-  gather_facts: True
+  become: true
+  gather_facts: true
   hosts: kube_cluster
   max_fail_percentage: 0
   roles:
-    - hardening
-    - k3s-dependencies
-    - k3s-deploy
+    - name: hardening
+      tags: hardening
+      when: hardening_enabled is defined and hardening_enabled == false
+    - name: k3s-dependencies
+      tags: k3s,dependencies,prep
+    - name: k3s-deploy
+      tags: k3s,deploy
 
 ...

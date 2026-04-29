@@ -1,38 +1,56 @@
 ---
+arch_mapping:
+  x86_64: amd64
+  aarch64: arm64
+  armv7l: armhf
+  i386: i386
+  ppc64le: ppc64le
+
+arch: "{{ arch_mapping[ansible_facts['architecture']] | default('amd64') }}"
+
 # defaults file for k3s-deploy
 #
-ingress_hostname: default
+ingress_hostname: "{{ cluster_external_ip }}.nip.io"
 
-k3s_version: v1.20.5+k3s1
+k3s_version: v1.32.2+k3s1
 k3s_binary_path: /usr/local/bin
 kubectl_cmd: "{{ k3s_binary_path }}/k3s kubectl"
 
 cluster_external_ip: "{{ ansible_host }}"
+# Change to "none" to disable WireGuard and use VXLAN instead
+# https://docs.k3s.io/networking/basic-network-options
+flannel_backend: wireguard-native
+bind_address: "{{ ansible_facts['ansible_' ~ (internal_interface | replace('-', '_'))]['ipv4']['address'] | default('0.0.0.0') }}"
+advertise_address: "{{ ansible_facts['ansible_' ~ (internal_interface | replace('-', '_'))]['ipv4']['address'] | default(ansible_host) }}"
 cluster_cidr: 10.43.0.0/16
 service_cidr: 10.44.0.0/16
 
-metallb_enabled: yes
-metallb_external_ip_range: 192.168.1.200-192.168.1.240
-metallb_internal_ip_range: 10.10.90.100-10.10.90.240
-metallb_version: v0.9.6
+kubevip_enabled: true
+kubevip_version: v1.1.2
+kubevip_cloud_provider_version: v0.0.12
+kubevip_interface: "{{ ansible_default_ipv4.interface | default('eth0') }}"
+kubevip_vip_address: ""
+kubevip_external_ip_range: "{{ groups['kube_node'] | default([]) | map('extract', hostvars, 'ansible_host') | map('regex_replace', '$', '/32') | join(',') }}"
+kubevip_internal_ip_range: ""
 
-dashboard_enabled: yes
-dashboard_version: v2.2.0
+dashboard_enabled: true
+cert_manager_enabled: true
+cert_manager_version: v1.19.1
+cert_manager_cluster_issuer: selfsigned-cluster-issuer
 
-nginx_ingress_version: 0.45.0
+portainer_version: "2.39.2"
+portainer_ingress_hostname: "portainer.{{ ingress_hostname }}"
+portainer_ingress_class: traefik
 
-openebs_storage_enabled: yes
+openebs_storage_enabled: true
 openebs_version: 2.8.0
 
-kubeless_enabled: yes
-kubeless_version: v1.0.8
+kubeless_enabled: false
 
-falco_security_enabled: yes
+falco_security_enabled: true
 falco_sidekick_slack: ""
 falco_sidekick_slack_priority: "warning"
-falco_sidekick_kubeless_function: "{% if kubeless_enabled %}falco-pod-delete{% else %}''{% endif %}"
-falco_sidekick_kubeless_namespace: "{% if kubeless_enabled %}kubeless{% else %}''{% endif %}"
-falco_sidekick_kubeless_priority: "notice"
+falco_sidekick_poddelete_minimumpriority: "notice"
 ### Possible customizations
 # falco_sidekick_alertmanager
 # falco_sidekick_alertmanager_priority
@@ -40,11 +58,9 @@ falco_sidekick_kubeless_priority: "notice"
 # falco_sidekick_discord_priority
 # falco_sidekick_googlechat
 # falco_sidekick_googlechat_priority
-# falco_sidekick_kubeless_function
-# falco_sidekick_kubeless_namespace
-# falco_sidekick_kubeless_priority
 # falco_sidekick_mattermost
 # falco_sidekick_mattermost_priority
+# falco_sidekick_poddelete_minimumpriority
 # falco_sidekick_rocketchat
 # falco_sidekick_rocketchat_priority
 # falco_sidekick_slack
@@ -53,18 +69,18 @@ falco_sidekick_kubeless_priority: "notice"
 # falco_sidekick_teams_priority
 #####
 
-keepalived_interface: eth0
-keepalived_addr_cidr: 192.168.122.100/24
-keepalived_ip: 192.168.122.100
+# Retry tuning
+pod_ready_retries: 60
+pod_ready_delay: 10
 
 protected_files:
-    - /etc/falco/token
-    - /etc/k3s-encryption.yaml
-    - /etc/systemd/system/k3s-agent.service
-    - /etc/systemd/system/k3s-server.service
-    - /usr/lib/systemd/system/falco.service
-    - /usr/lib/systemd/system/rescue.service
-    - /var/lib/rancher/audit/audit-policy.yaml
-    - /var/lib/rancher/audit/webhook-config.yaml
+  - /etc/falco/token
+  - /etc/k3s-encryption.yaml
+  - /etc/systemd/system/k3s-agent.service
+  - /etc/systemd/system/k3s-server.service
+  - /usr/lib/systemd/system/falco.service
+  - /usr/lib/systemd/system/rescue.service
+  - /var/lib/rancher/audit/audit-policy.yaml
+  - /var/lib/rancher/audit/webhook-config.yaml
 
 ...

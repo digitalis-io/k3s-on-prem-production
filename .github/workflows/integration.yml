@@ -1,0 +1,65 @@
+---
+name: Integration Tests (k3d)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  k3d-integration:
+    name: k3d cluster integration test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install k3d
+        run: |
+          curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+
+      - name: Create k3d cluster
+        run: |
+          k3d cluster create test-cluster \
+            --agents 1 \
+            --k3s-arg '--disable=traefik@server:*' \
+            --wait
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Ansible and kubectl
+        run: |
+          pip install ansible
+          ansible-galaxy collection install -r requirements.yml
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+
+      - name: Run in-cluster component tasks (kube-vip, dashboard manifests check)
+        env:
+          KUBECONFIG: /home/runner/.k3d/kubeconfig-test-cluster.yaml
+        run: |
+          k3d kubeconfig merge test-cluster --kubeconfig-merge-default
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Assert all system pods are Running
+        env:
+          KUBECONFIG: /home/runner/.k3d/kubeconfig-test-cluster.yaml
+        run: |
+          kubectl wait --for=condition=Ready nodes --all --timeout=120s
+          PENDING=$(kubectl get pods -A --field-selector=status.phase!=Running,status.phase!=Succeeded --no-headers 2>/dev/null | grep -v "^$" | wc -l)
+          echo "Non-running pods: $PENDING"
+          if [ "$PENDING" -gt 0 ]; then
+            kubectl get pods -A
+            exit 1
+          fi
+
+      - name: Cleanup k3d cluster
+        if: always()
+        run: k3d cluster delete test-cluster

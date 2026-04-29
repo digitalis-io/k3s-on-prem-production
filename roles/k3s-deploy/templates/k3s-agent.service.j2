@@ -12,7 +12,7 @@ Wants=network-online.target
 # TLS - allow only strong ciphers
 ###########
 [Service]
-ExecStart={{ k3s_binary_path }}/k3s agent --server https://{{ keepalived_ip }}:6443 \
+ExecStart={{ k3s_binary_path }}/k3s agent --server https://{{ kubevip_vip_address if (kubevip_vip_address | default('') | length > 0) else hostvars[groups['kube_master'][0]]['ansible_host'] }}:6443 \
 {%if 'libselinux' in ansible_facts.packages %}
     --selinux \
 {% endif %}
@@ -20,7 +20,8 @@ ExecStart={{ k3s_binary_path }}/k3s agent --server https://{{ keepalived_ip }}:6
     --kubelet-arg='streaming-connection-idle-timeout=5m' \
     --kubelet-arg=tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_RSA_WITH_AES_128_GCM_SHA256,TLS_RSA_WITH_AES_256_GCM_SHA384 \
     --protect-kernel-defaults=true \
-    --node-ip {{ ansible_host }}
+    --node-ip {{ ansible_host }} \
+    --bind-address {{ bind_address }}
 Environment="K3S_TOKEN={{ token }}"
 Delegate=yes
 KillMode=process
@@ -41,8 +42,10 @@ ConditionSecurity=selinux
 LockPersonality=yes
 PrivateTmp=yes
 ProtectHome=yes
-ProtectHostname=yes
-ProtectKernelLogs=yes
+ProtectHostname=no
+# This no longer works with latest k3s versions
+ProtectKernelLogs=no
+AmbientCapabilities=CAP_SYSLOG
 ProtectKernelTunables=yes
 ProtectSystem=full
 ReadWriteDirectories=/var/lib/ /var/run /run /var/log/ /lib/modules /etc/rancher/

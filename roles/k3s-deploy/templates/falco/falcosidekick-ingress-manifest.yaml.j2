@@ -4,15 +4,12 @@ metadata:
   name: falcosidekick-ingress
   namespace: falco
   annotations:
-    kubernetes.io/ingress.class: "internal-ingress-nginx"
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    cert-manager.io/cluster-issuer: "{{ cert_manager_cluster_issuer }}"
 spec:
+  ingressClassName: traefik
   rules:
-{% if metallb_internal_ip_range is defined %}
-  - host: falcosidekick.{{ internal_ingress_hostname }}
-{% else %}
   - host: falcosidekick.{{ ingress_hostname }}
-{% endif %}
     http:
       paths:
       - path: /
@@ -22,3 +19,7 @@ spec:
             name: falcosidekick
             port:
               number: 2801
+  tls:
+  - hosts:
+    - falcosidekick.{{ ingress_hostname }}
+    secretName: falcosidekick-tls

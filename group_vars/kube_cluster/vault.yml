@@ -1,0 +1,17 @@
+---
+# This file should be encrypted with: ansible-vault encrypt group_vars/kube_cluster/vault.yml
+# Decrypt with: ansible-vault decrypt group_vars/kube_cluster/vault.yml
+# View encrypted: ansible-vault view group_vars/kube_cluster/vault.yml
+#
+# vault_k3s_cluster_secret: <your-cluster-secret>
+# vault_k3s_encryption_secret: <your-encryption-key-base64>
+# vault_falco_sidekick_slack: <your-slack-webhook-url>
+#
+# Example to create a new cluster secret:
+#   openssl rand -hex 32
+# Example to create a new encryption key:
+#   head -c 32 /dev/urandom | base64
+
+# vault_k3s_cluster_secret: CHANGE_ME_USE_ANSIBLE_VAULT
+# vault_k3s_encryption_secret: CHANGE_ME_USE_ANSIBLE_VAULT
+# vault_falco_sidekick_slack: CHANGE_ME_USE_ANSIBLE_VAULT

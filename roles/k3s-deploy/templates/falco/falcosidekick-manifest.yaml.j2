@@ -176,12 +176,6 @@ data:
   PAGERDUTY_ESCALATION_POLICY: ""
   PAGERDUTY_MINIMUMPRIORITY: ""
 
-  # Kubeless Output
-  KUBELESS_FUNCTION: "{{ (falco_sidekick_kubeless_function | default('')) | b64encode }}"
-  KUBELESS_NAMESPACE: "{{ (falco_sidekick_kubeless_namespace | default('')) | b64encode }}"
-  KUBELESS_PORT: "ODA4MA=="
-  KUBELESS_MINIMUMPRIORITY: "{{ (falco_sidekick_kubeless_priority | default('')) | b64encode }}"
-
   # OpenFaaS
   OPENFAAS_GATEWAYNAMESPACE: "b3BlbmZhYXM="
   OPENFAAS_GATEWAYSERVICE: "Z2F0ZXdheQ=="
@@ -295,7 +289,7 @@ spec:
         fsGroup: 1234
       containers:
         - name: falcosidekick
-          image: "falcosecurity/falcosidekick:2.22.0"
+          image: "falcosecurity/falcosidekick:2.30.0"
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -323,5 +317,36 @@ spec:
               value: ""
             - name: CHECKCERT
               value: "true"
+            - name: PODDELETE_MINIMUMPRIORITY
+              value: "{{ falco_sidekick_poddelete_minimumpriority | default('notice') }}"
           resources:
             {}
+---
+# ClusterRole and ClusterRoleBinding for Falcosidekick pod deletion
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: falcosidekick-poddelete
+  labels:
+    app.kubernetes.io/name: falcosidekick
+    app.kubernetes.io/instance: falcosidekick
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["delete", "get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: falcosidekick-poddelete
+  labels:
+    app.kubernetes.io/name: falcosidekick
+    app.kubernetes.io/instance: falcosidekick
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: falcosidekick-poddelete
+subjects:
+  - kind: ServiceAccount
+    name: falcosidekick
+    namespace: falco

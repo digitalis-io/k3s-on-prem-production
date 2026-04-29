@@ -6,7 +6,7 @@ Documentation=https://falco.org/docs/
 Type=simple
 User=root
 ExecStartPre=/sbin/modprobe falco
-ExecStart=/usr/bin/falco --pidfile=/var/run/falco.pid --k8s-api-cert=/etc/falco/token --k8s-api https://{{ keepalived_ip }}:6443 -pk
+ExecStart=/usr/bin/falco --pidfile=/var/run/falco.pid --k8s-api-cert=/etc/falco/token --k8s-api https://{{ kubevip_vip_address if (kubevip_vip_address | default('') | length > 0) else hostvars[groups['kube_master'][0]]['ansible_host'] }}:6443 -pk
 ExecStopPost=/sbin/rmmod falco
 UMask=0077
 TimeoutSec=30

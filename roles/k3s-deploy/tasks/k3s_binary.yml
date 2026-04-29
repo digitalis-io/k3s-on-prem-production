@@ -1,24 +1,33 @@
 ---
 
+- name: Set k3s binary name for architecture
+  ansible.builtin.set_fact:
+    k3s_arch: "{{ 'arm64' if ansible_architecture == 'aarch64' else 'amd64' }}"
+    k3s_binary_name: "{{ 'k3s-arm64' if ansible_architecture == 'aarch64' else 'k3s' }}"
+    k3s_checksum_file: "{{ 'sha256sum-arm64.txt' if ansible_architecture == 'aarch64' else 'sha256sum-amd64.txt' }}"
+
+- debug:
+    msg: "Downloading k3s binary {{ k3s_binary_name }} for architecture {{ k3s_arch }} with checksum file {{ k3s_checksum_file }}"
+
 - name: Download k3s locally
-  get_url:
-    url: "https://github.com/rancher/k3s/releases/download/{{ k3s_version }}/k3s"
-    checksum: "sha256:https://github.com/rancher/k3s/releases/download/{{ k3s_version }}/sha256sum-amd64.txt"
-    dest: "artifacts/k3s-binary-{{ k3s_version }}"
-    mode: 0500
-  become: no
+  ansible.builtin.get_url:
+    url: "https://github.com/rancher/k3s/releases/download/{{ k3s_version }}/{{ k3s_binary_name }}"
+    checksum: "sha256:https://github.com/rancher/k3s/releases/download/{{ k3s_version }}/{{ k3s_checksum_file }}"
+    dest: "/tmp/k3s-binary-{{ k3s_version }}-{{ k3s_arch }}"
+    mode: '0500'
+  become: false
   delay: 3
   delegate_to: localhost
   register: result
   retries: 3
-  run_once: yes
+  run_once: true
   until: result is not failed
 
 - name: Deploy k3s binary
-  copy:
-    src: "artifacts/k3s-binary-{{ k3s_version }}"
+  ansible.builtin.copy:
+    src: "/tmp/k3s-binary-{{ k3s_version }}-{{ k3s_arch }}"
     dest: "{{ k3s_binary_path }}/k3s"
-    mode: 0500
+    mode: '0500'
     owner: root
     group: root
   register: k3s_binary

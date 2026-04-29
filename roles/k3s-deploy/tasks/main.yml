@@ -1,102 +1,104 @@
 ---
 
 - name: Retrieve package facts
-  package_facts:
+  ansible.builtin.package_facts:
     manager: "auto"
   tags: always
 
-- include_tasks:
+- name: Check if /etc/k3s-admission.yaml exists
+  ansible.builtin.stat:
+    path: /etc/k3s-admission.yaml
+  register: admission_file
+  tags: always
+
+- name: Set psa_admission_enabled
+  ansible.builtin.set_fact:
+    psa_admission_enabled: "{{ admission_file.stat.exists }}"
+  tags: always
+
+- name: Import k3s binary tasks
+  ansible.builtin.import_tasks:
     file: k3s_binary.yml
-    apply:
-      tags: always
   tags: always
 
 - name: Setup control-plane
   block:
 
     # tasks file for k3s-deploy
-    - include_tasks:
+    - name: Import cluster bootstrap tasks
+      ansible.builtin.import_tasks:
         file: cluster_bootstrap.yml
-        apply:
-          tags: always
       tags: bootstrap
 
-    - include_tasks:
+    - name: Import cluster server tasks
+      ansible.builtin.import_tasks:
         file: cluster_server.yml
-        apply:
-          tags: always
-      tags: server
-
-    - include_tasks:
-        file: cluster_keepalived.yml
-        apply:
-          tags: always
       tags: server
 
   when: "'kube_master' in group_names"
 
 - name: Read node-token from master
-  slurp:
+  ansible.builtin.slurp:
     src: /var/lib/rancher/k3s/server/node-token
   delegate_to: "{{ groups['kube_master'][0] }}"
   register: node_token
-  run_once: yes
+  run_once: true
   tags:
     - server
     - agent
 
 - name: Store Master node-token
-  set_fact:
+  ansible.builtin.set_fact:
     token: "{{ hostvars[groups['kube_master'][0]]['node_token'].content | b64decode | regex_replace('\n', '') }}"
   tags:
     - server
     - agent
 
-- include_tasks:
+- name: Import cluster agent tasks
+  ansible.builtin.import_tasks:
     file: cluster_agent.yml
-    apply:
-      tags: always
   tags: agent
   when: "'kube_node' in group_names"
 
-- include_tasks:
+- name: Import cluster hardening tasks
+  ansible.builtin.import_tasks:
     file: cluster_hardening.yml
-    apply:
-      tags: always
   tags: hardening
 
 - name: Deploy internal components
   block:
 
     - name: Create custom manifest folder
-      file:
+      ansible.builtin.file:
         path: /var/lib/rancher/k3s/server/custom-manifests
         state: directory
-        mode: 0700
+        mode: '0700'
         owner: root
         group: root
       tags: always
       when:
         - "'kube_master' in group_names"
 
-    - include_tasks:
-        file: metallb.yml
+    - name: Include kube-vip tasks
+      ansible.builtin.include_tasks:
+        file: kubevip.yml
         apply:
           tags: always
       tags: loadbalancer
       when:
-        - metallb_enabled
+        - kubevip_enabled
 
-    - include_tasks:
-        file: ingress.yml
+    - name: Include cert-manager tasks
+      ansible.builtin.include_tasks:
+        file: cert_manager.yml
         apply:
           tags: always
-      tags:
-        - ingress
-        - dashboard
-        - falco_security
+      tags: cert_manager
+      when:
+        - cert_manager_enabled
 
-    - include_tasks:
+    - name: Include dashboard tasks
+      ansible.builtin.include_tasks:
         file: dashboard.yml
         apply:
           tags: always
@@ -104,7 +106,9 @@
       when:
         - dashboard_enabled
 
-    - include_tasks:
+    # Kubeless is EOL — kept for backwards compatibility flag but tasks are no-ops
+    - name: Include kubeless tasks
+      ansible.builtin.include_tasks:
         file: kubeless.yml
         apply:
           tags: always
@@ -116,7 +120,8 @@
   when:
     - "'kube_master' in group_names"
 
-- include_tasks:
+- name: Include Falco security tasks
+  ansible.builtin.include_tasks:
     file: falco_security.yml
     apply:
       tags: always

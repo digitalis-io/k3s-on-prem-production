@@ -1,0 +1,34 @@
+---
+- name: Verify k3s-dependencies
+  hosts: all
+  become: true
+  tasks:
+    - name: Check conntrack-tools is installed
+      ansible.builtin.package:
+        name: conntrack-tools
+        state: present
+      check_mode: true
+      register: conntrack_pkg
+      failed_when: false
+
+    - name: Assert conntrack-tools is installed
+      ansible.builtin.assert:
+        that: not conntrack_pkg.changed
+
+    - name: Check br_netfilter module is loaded
+      ansible.builtin.command: lsmod
+      changed_when: false
+      register: lsmod_output
+
+    - name: Assert br_netfilter is loaded
+      ansible.builtin.assert:
+        that: "'br_netfilter' in lsmod_output.stdout"
+
+    - name: Check ip_forward sysctl
+      ansible.builtin.command: sysctl net.ipv4.ip_forward
+      changed_when: false
+      register: ip_forward
+
+    - name: Assert ip_forward is enabled
+      ansible.builtin.assert:
+        that: "'1' in ip_forward.stdout"

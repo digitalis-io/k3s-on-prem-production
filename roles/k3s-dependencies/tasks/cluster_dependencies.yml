@@ -2,52 +2,60 @@
 # tasks file for k3s-dependencies
 #
 - name: Install k3s dependencies
-  package:
+  ansible.builtin.package:
     state: present
     name: "{{ k3s_dependencies }}"
 
+- name: Create main config directory
+  ansible.builtin.file:
+    path: /etc/rancher
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
 - name: Update the /etc/hosts file with node name
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/hosts
     regexp: "{{ hostvars[item]['ansible_host'] }}  {{ hostvars[item]['ansible_hostname'] }}  {{ item }}"
     line: "{{ hostvars[item]['ansible_host'] }}  {{ hostvars[item]['ansible_hostname'] }}  {{ item }}"
     state: present
-    backup: yes
+    backup: true
   with_items: "{{ groups['kube_cluster'] }}"
 
 - name: Add the br_netfilter module
-  modprobe:
+  community.general.modprobe:
     name: br_netfilter
     state: present
 
 - name: Persist br_netfilter module
-  blockinfile:
-    create: yes
+  ansible.builtin.blockinfile:
+    create: true
     path: /etc/modules-load.d/br_netfilter.conf
     block: |
       br_netfilter
-    mode: 0600
+    mode: '0600'
 
 - name: Add the overlay module
-  modprobe:
+  community.general.modprobe:
     name: overlay
     state: present
 
 - name: Persist overlay module
-  blockinfile:
-    create: yes
+  ansible.builtin.blockinfile:
+    create: true
     path: /etc/modules-load.d/overlay.conf
     block: |
       overlay
-    mode: 0600
+    mode: '0600'
 
 - name: Set sysctl ipv4 and ipv6 conf
-  sysctl:
+  ansible.posix.sysctl:
     name: "{{ item.key }}"
     value: "{{ item.value }}"
-    sysctl_set: yes
+    sysctl_set: true
     state: present
-    reload: yes
+    reload: true
   with_items:
     - {key: kernel.keys.root_maxbytes, value: 25000000}
     - {key: kernel.keys.root_maxkeys, value: 1000000}
@@ -74,21 +82,21 @@
     ## Start block
 
     - name: Set firewalld backend to iptables
-      replace:
+      ansible.builtin.replace:
         path: /etc/firewalld/firewalld.conf
         regexp: FirewallBackend=nftables$
         replace: FirewallBackend=iptables
-        backup: yes
+        backup: true
       register: firewalld_backend
 
     - name: Reboot machines if firewalld backend updated
-      command: reboot
+      ansible.builtin.command: reboot
       async: 1
       poll: 0
       when: firewalld_backend.changed
 
     - name: Wait for system to become reachable
-      wait_for_connection:
+      ansible.builtin.wait_for_connection:
         delay: 1
         timeout: 300
       when: firewalld_backend.changed
@@ -96,110 +104,122 @@
     - block:
 
         - name: Set cluster zone
-          set_fact:
+          ansible.builtin.set_fact:
             cluster_zone: internal
 
         - name: Get internal zone interface   # noqa command-instead-of-module
-          command: "firewall-cmd --list-interface --zone=internal"
+          ansible.builtin.command: "firewall-cmd --list-interface --zone=internal"
           register: internal_zone
-          changed_when: no
+          changed_when: false
 
-        # Using command to workarount bug https://github.com/ansible-collections/ansible.posix/issues/75
+        # Using command to workaround bug https://github.com/ansible-collections/ansible.posix/issues/75
         - name: Set internal interface to internal zone   # noqa command-instead-of-module
-          command: "{{ item }}"
+          ansible.builtin.command: "{{ item }}"
           with_items:
             - "firewall-cmd --zone=internal --change-interface={{ internal_interface }} --permanent"
             - "firewall-cmd --reload"
           when: internal_interface not in ''.join(internal_zone.stdout_lines)
 
-        - name: Open external ports
-          firewalld:
-            state: enabled
-            immediate: yes
-            permanent: yes
-            port: '{{ item }}'
-            zone: public
+        - name: Open external ports   # noqa command-instead-of-module
+          ansible.builtin.command: "firewall-cmd --zone=public --add-port={{ item }} --permanent"
+          register: open_ext
+          changed_when: "'ALREADY_ENABLED' not in open_ext.stderr"
+          failed_when: open_ext.rc != 0 and 'ALREADY_ENABLED' not in open_ext.stderr
           with_items:
             - 80/tcp
             - 443/tcp
             - 6443/tcp
 
-        - name: Close external ports
-          firewalld:
-            state: disabled
-            immediate: yes
-            permanent: yes
-            service: '{{ item }}'
-            zone: public
+        - name: Close external ports   # noqa command-instead-of-module
+          ansible.builtin.command: "firewall-cmd --zone=public --remove-service={{ item }} --permanent"
+          register: close_ext
+          changed_when: "'NOT_ENABLED' not in close_ext.stderr"
+          failed_when: close_ext.rc != 0 and 'NOT_ENABLED' not in close_ext.stderr
+          with_items:
+            - cockpit
+
+        - name: Allow Public SSH   # noqa command-instead-of-module
+          ansible.builtin.command: "firewall-cmd --zone=public --add-service={{ item }} --permanent"
+          register: allow_ssh
+          changed_when: "'ALREADY_ENABLED' not in allow_ssh.stderr"
+          failed_when: allow_ssh.rc != 0 and 'ALREADY_ENABLED' not in allow_ssh.stderr
+          when: allow_public_ssh is defined and allow_public_ssh == true
           with_items:
             - ssh
-            - cockpit
+
+        - name: Reload firewalld after external zone changes   # noqa command-instead-of-module
+          ansible.builtin.command: "firewall-cmd --reload"
+          changed_when: false
 
       when: external_interface != internal_interface
 
-    - name: Add firewalld masquerading
-      firewalld:
-        masquerade: yes
-        state: enabled
-        permanent: yes
-        immediate: yes
-        zone: "{{ item }}"
+    - name: Add firewalld masquerading   # noqa command-instead-of-module
+      ansible.builtin.command: "firewall-cmd --zone={{ item }} --add-masquerade --permanent"
+      register: masq
+      changed_when: "'ALREADY_ENABLED' not in masq.stderr"
+      failed_when: masq.rc != 0 and 'ALREADY_ENABLED' not in masq.stderr
       with_items:
         - internal
         - public
 
-    - name: Add firewalld rich rules /flannel
-      firewalld:
-        rich_rule: rule family=ipv4 source address={{ item.1 }} accept
-        permanent: yes
-        immediate: yes
-        state: enabled
-        zone: "{{ item.0 }}"
+    - name: Add firewalld rich rules /flannel   # noqa command-instead-of-module
+      ansible.builtin.command: >-
+        firewall-cmd --zone={{ item.0 }} --permanent
+        --add-rich-rule='rule family=ipv4 source address={{ item.1 }} accept'
+      register: rich
+      changed_when: "'ALREADY_ENABLED' not in rich.stderr"
+      failed_when: rich.rc != 0 and 'ALREADY_ENABLED' not in rich.stderr
       with_nested:
         - ["{{ cluster_zone | default('public') }}"]
         - ["{{ cluster_cidr }}", "{{ service_cidr }}"]
 
-    - name: Open ports /master
-      firewalld:
-        state: enabled
-        permanent: yes
-        immediate: yes
-        port: '{{ item }}'
-        zone: "{{ cluster_zone | default('public') }}"
+    - name: Open ports /master   # noqa command-instead-of-module
+      ansible.builtin.command: "firewall-cmd --zone={{ cluster_zone | default('public') }} --add-port={{ item }} --permanent"
+      register: master_ports
+      changed_when: "'ALREADY_ENABLED' not in master_ports.stderr"
+      failed_when: master_ports.rc != 0 and 'ALREADY_ENABLED' not in master_ports.stderr
       with_items:
         - 2379/tcp    # etcd client requests
         - 2380/tcp    # etcd peer communication
         - 6443/tcp    # k8s api
       when: "'kube_master' in group_names"
 
-    - name: Open ports /all
-      firewalld:
-        state: enabled
-        immediate: yes
-        permanent: yes
-        port: '{{ item }}'
-        zone: "{{ cluster_zone | default('public') }}"
+    - name: Open ports /all   # noqa command-instead-of-module
+      ansible.builtin.command: "firewall-cmd --zone={{ cluster_zone | default('public') }} --add-port={{ item }} --permanent"
+      register: all_ports
+      changed_when: "'ALREADY_ENABLED' not in all_ports.stderr"
+      failed_when: all_ports.rc != 0 and 'ALREADY_ENABLED' not in all_ports.stderr
       with_items:
         - 80/tcp
         - 443/tcp
-        - 7946/udp          # MetalLB speaker port
-        - 7946/tcp          # MetalLB speaker port
-        - 8472/udp          # Canal/Flannel VXLAN overlay networking
+        - 8472/udp          # Canal/Flannel VXLAN overlay (required when flannel_backend=vxlan)
+        - 51820/udp         # Flannel WireGuard (IPv4, required when flannel_backend=wireguard-native)
+        - 51821/udp         # Flannel WireGuard (IPv6, required when flannel_backend=wireguard-native)
         - 9099/tcp          # Canal/Flannel livenessProbe/readinessProbe
         - 10250-10255/tcp   # kubelet API + Ingress controller livenessProbe/readinessProbe
         - 30000-32767/tcp   # NodePort port range
         - 30000-32767/udp   # NodePort port range
+
+    - name: Reload firewalld after all changes   # noqa command-instead-of-module
+      ansible.builtin.command: "firewall-cmd --reload"
+      changed_when: false
 
   ## End block
   when:
     - "'firewalld' in ansible_facts.packages"
   tags: firewall
 
+- name: Install SElinux packages
+  ansible.builtin.package:
+    state: present
+    name: "container-selinux"
+  when: "'libselinux' in ansible_facts.packages"
+
 # Workaround to the RPM/YUM hardening
 # being the GPG key enforced at rpm level, we cannot use
 # the dnf or yum module of ansible
 - name: Install SELINUX Policies  # noqa command-instead-of-module
-  command: |
+  ansible.builtin.command: |
     rpm --define '_pkgverify_level digest' -i {{ k3s_selinux_rpm }}
   register: rpm_install
   changed_when: "rpm_install.rc == 0"

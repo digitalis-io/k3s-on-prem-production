@@ -1,0 +1,64 @@
+---
+
+- name: kube-vip - Deploy RBAC manifest
+  ansible.builtin.template:
+    src: kubevip/kube-vip-rbac.yaml.j2
+    dest: /var/lib/rancher/k3s/server/manifests/kube-vip-rbac.yaml
+    owner: 'root'
+    group: 'root'
+    mode: '0600'
+
+- name: kube-vip - Deploy DaemonSet manifest
+  ansible.builtin.template:
+    src: kubevip/kube-vip-ds.yaml.j2
+    dest: /var/lib/rancher/k3s/server/manifests/kube-vip-ds.yaml
+    owner: 'root'
+    group: 'root'
+    mode: '0600'
+
+- name: kube-vip - Download cloud provider manifest
+  ansible.builtin.get_url:
+    url: "https://raw.githubusercontent.com/kube-vip/kube-vip-cloud-provider/main/manifest/kube-vip-cloud-controller.yaml"
+    dest: /var/lib/rancher/k3s/server/manifests/kube-vip-cloud-controller.yaml
+    owner: 'root'
+    group: 'root'
+    mode: '0600'
+
+- name: kube-vip - Deploy IP pool ConfigMap
+  ansible.builtin.template:
+    src: kubevip/kube-vip-cloud-provider-cm.yaml.j2
+    dest: /var/lib/rancher/k3s/server/custom-manifests/kube-vip-cloud-provider-cm.yaml
+    owner: 'root'
+    group: 'root'
+    mode: '0600'
+
+- name: kube-vip - Apply IP pool ConfigMap
+  ansible.builtin.command: |
+    {{ kubectl_cmd }} apply -f /var/lib/rancher/k3s/server/custom-manifests/kube-vip-cloud-provider-cm.yaml
+  register: kubectl
+  changed_when: "'created' in kubectl.stdout or 'configured' in kubectl.stdout"
+  failed_when: "'AlreadyExists' not in kubectl.stderr and kubectl.rc != 0"
+  run_once: true
+
+- name: kube-vip - Wait for DaemonSet to be ready
+  ansible.builtin.shell: |
+    set -o pipefail
+    {{ kubectl_cmd }} get pods -n kube-system -l name=kube-vip-ds | tail -n +2 | grep -Ev "Completed|Running|Success"
+  register: pods
+  until: (pods.stdout_lines | length) == 0
+  failed_when: false
+  changed_when: false
+  retries: "{{ pod_ready_retries }}"
+  delay: "{{ pod_ready_delay }}"
+  run_once: true
+
+- name: kube-vip - Wait for VIP to come up
+  ansible.builtin.command: |
+    ping -c 1 -w 1 {{ kubevip_vip_address }}
+  register: ping
+  until: ping.rc == 0
+  retries: 30
+  delay: 5
+  run_once: true
+  changed_when: false
+  when: kubevip_vip_address | default('') | length > 0

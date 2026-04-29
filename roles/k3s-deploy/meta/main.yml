@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  role_name: k3s_deploy
+  author: k3s-ansible-playbook
+  description: Deploy hardened k3s Kubernetes cluster with HA masters
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+  galaxy_tags:
+    - kubernetes
+    - k3s
+    - security

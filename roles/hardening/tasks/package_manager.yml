@@ -14,7 +14,7 @@
         section: main
         option: "{{ item.key }}"
         value: "{{ item.value }}"
-        create: yes
+        create: true
         owner: 'root'
         group: 'root'
         mode: '0644'
@@ -32,7 +32,7 @@
         section: main
         option: "{{ item.key }}"
         value: "{{ item.value }}"
-        create: yes
+        create: true
         owner: 'root'
         group: 'root'
         mode: '0644'
@@ -43,13 +43,6 @@
         - {key: keepcache, value: true}
         - {key: localpkg_gpgcheck, value: 1}
         - {key: clean_requirements_on_remove, value: 1}
-
-    - name: Ensure GPG check is globally activated (rpm)
-      lineinfile:
-        dest: /etc/rpm/macros.dist
-        state: present
-        regexp: "^%_pkgverify_level.*"
-        line: '%_pkgverify_level all'
 
   when:
     - ansible_os_family == "RedHat"

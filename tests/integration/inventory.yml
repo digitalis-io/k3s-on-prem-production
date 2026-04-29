@@ -1,0 +1,27 @@
+---
+# CI-specific inventory for k3d integration tests.
+# The cluster is created by k3d and kubeconfig is written to ~/.kube/config.
+
+all:
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  children:
+    kube_cluster:
+      vars:
+        k3s_cluster_secret: ci-test-secret
+        k3s_encryption_secret: ci-test-encryption-key-base64==
+        falco_sidekick_slack: ""
+        k3s_version: v1.32.2+k3s1
+        external_interface: eth0
+        internal_interface: eth0
+      children:
+        kube_master:
+          hosts:
+            k3d-test-cluster-server-0:
+              ansible_host: 127.0.0.1
+              ansible_connection: local
+        kube_node:
+          hosts:
+            k3d-test-cluster-agent-0:
+              ansible_host: 127.0.0.1
+              ansible_connection: local

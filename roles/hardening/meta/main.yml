@@ -1,0 +1,15 @@
+---
+galaxy_info:
+  role_name: hardening
+  author: k3s-ansible-playbook
+  description: CIS/STIG OS hardening for RHEL/Rocky Linux 9
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+  galaxy_tags:
+    - hardening
+    - security
+    - cis
+    - stig
