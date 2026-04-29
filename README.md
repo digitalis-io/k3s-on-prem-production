@@ -1,6 +1,4 @@
-<<<<<<< feat/re-do-centos
 # K3s Lightweight Kubernetes — Production-Ready On-Premises
-=======
   <p align="center">
     <a href="https://digitalis.io">
       <img src="https://digitalis-marketplace-assets.s3.us-east-1.amazonaws.com/DigitalisDigital_DigitalisFullLogoGradient+-+medium.png" alt="Digitalis.IO" width="300">
@@ -10,11 +8,6 @@
   <p align="center">
     <em>Built and maintained by <a href="https://digitalis.io">Digitalis.IO</a></em>
   </p>
-
-# K3s Lightweight Kubernetes made ready for production
->>>>>>> main
-
-**Built and maintained by [Digitalis.io](https://digitalis.io)**
 
 This repository contains an Ansible playbook that provisions a hardened, production-grade [k3s](https://k3s.io) Kubernetes cluster on bare metal or virtual machines. It targets RHEL 9, Rocky Linux 9, and CentOS Stream 9, and implements security controls aligned with CIS Benchmarks and STIG guidelines.
 
