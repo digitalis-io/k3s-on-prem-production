@@ -1,4 +1,18 @@
+<<<<<<< feat/re-do-centos
 # K3s Lightweight Kubernetes — Production-Ready On-Premises
+=======
+  <p align="center">
+    <a href="https://digitalis.io">
+      <img src="https://digitalis-marketplace-assets.s3.us-east-1.amazonaws.com/DigitalisDigital_DigitalisFullLogoGradient+-+medium.png" alt="Digitalis.IO" width="300">
+    </a>
+  </p>
+
+  <p align="center">
+    <em>Built and maintained by <a href="https://digitalis.io">Digitalis.IO</a></em>
+  </p>
+
+# K3s Lightweight Kubernetes made ready for production
+>>>>>>> main
 
 **Built and maintained by [Digitalis.io](https://digitalis.io)**
 
