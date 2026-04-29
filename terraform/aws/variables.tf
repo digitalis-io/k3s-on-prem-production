@@ -44,13 +44,6 @@ variable "agent_type" {
   default     = "t3.medium"
 }
 
-# ── Region & AMI ─────────────────────────────────────────
-variable "region" {
-  description = "AWS region (e.g. eu-west-1, us-east-1)"
-  type        = string
-  default     = "eu-west-1"
-}
-
 variable "ami_id" {
   description = "AMI ID for all nodes. If empty, the latest Amazon Linux 2023 AMI is used as fallback."
   type        = string

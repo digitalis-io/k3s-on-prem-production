@@ -57,12 +57,6 @@ variable "image" {
   default     = "rocky-9"
 }
 
-variable "disk_size" {
-  description = "Disk size in GB for all nodes (only applies if using volumes beyond the server type default)"
-  type        = number
-  default     = 50
-}
-
 # ── Networking ───────────────────────────────────────────
 variable "create_network" {
   description = "Create a private network for inter-node communication. When false, nodes communicate over public IPs."
