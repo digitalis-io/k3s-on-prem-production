@@ -1,0 +1,28 @@
+---
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+
+  - repo: https://github.com/terraform-docs/terraform-docs
+    rev: v0.22.0
+    hooks:
+      - id: terraform-docs-go
+        args: ["infra/"]
+
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.105.0
+    hooks:
+      - id: terraform_fmt
+        args:
+          - --args=-recursive
+      - id: terraform_validate
+      - id: terraform_tflint
+        args:
+          - --args=--recursive
